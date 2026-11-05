@@ -1,0 +1,7 @@
+{
+  "database": "dolt",
+  "backend": "dolt",
+  "dolt_mode": "embedded",
+  "dolt_database": "VulnClaw_Max",
+  "project_id": "c06baaa4-20d0-4e81-81f8-039d77eeff57"
+}
