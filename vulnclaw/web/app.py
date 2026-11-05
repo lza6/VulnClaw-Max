@@ -160,13 +160,19 @@ def _serve_spa(request, file_path: Path):  # type: ignore[no-untyped-def]
 
 @contextmanager
 def _report_fs_errors():
-    """Map report filesystem errors onto HTTP responses (missing -> 404, denied -> 403)."""
+    """Map report failures onto HTTP responses.
+
+    Missing file -> 404, denied path -> 403, and a missing optional PDF extra ->
+    400 with the install hint instead of a bare 500.
+    """
     try:
         yield
     except FileNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except PermissionError as exc:
         raise HTTPException(status_code=403, detail=str(exc)) from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 def create_app():

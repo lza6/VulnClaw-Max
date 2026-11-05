@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
@@ -241,3 +242,29 @@ def test_task_accepts_an_existing_project(client, tmp_path):
 
     assert response.status_code == 200, response.text
     assert response.json()["options"]["project"] == slug
+
+
+def test_pdf_export_without_the_optional_extra_is_a_client_error(client, monkeypatch):
+    import vulnclaw.web.services.report_service as report_service
+
+    def no_pdf(*_args, **_kwargs):
+        raise RuntimeError("PDF export requires reportlab. Install the extra with: pip install 'vulnclaw[pdf]'")
+
+    def fake_generate(_raw, report_format, output_path, template="pentest"):
+        Path(output_path).write_text("# markdown body", encoding="utf-8")
+        return output_path
+
+    monkeypatch.setattr(report_service, "generate_report_from_target_state", fake_generate)
+    monkeypatch.setattr(report_service, "load_target_state", lambda _target: {"target": "example.com"})
+    monkeypatch.setattr(
+        "vulnclaw.report.pdf_exporter.export_pdf",
+        no_pdf,
+        raising=False,
+    )
+
+    response = client.post(
+        "/api/reports/target", json={"target": "example.com", "report_format": "pdf"}
+    )
+
+    assert response.status_code == 400
+    assert "vulnclaw[pdf]" in response.json()["detail"]
