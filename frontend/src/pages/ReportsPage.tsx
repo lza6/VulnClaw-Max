@@ -4,8 +4,8 @@ import { ReportPreview, ReportPreviewDialog } from "../components/ReportPreviewD
 import { SectionCard } from "../components/SectionCard";
 import { useReportContentQuery, useReportsQuery, useTargetsQuery } from "../hooks/queries";
 import { useT, type TFunction } from "../i18n";
-import type { ReportListItem } from "../types/api";
-import { loadUiPreferences, subscribeUiPreferences } from "../utils/preferences";
+import type { ReportListItem, ReportTemplate } from "../types/api";
+import { loadUiPreferences, saveUiPreferences, subscribeUiPreferences } from "../utils/preferences";
 
 interface ReportsPageProps {
   selectedTarget: string | null;
@@ -28,15 +28,23 @@ export function ReportsPage({ selectedTarget, focus }: ReportsPageProps) {
   const [copyStatus, setCopyStatus] = useState<string | null>(null);
   const [search, setSearch] = useState(selectedTarget ?? "");
   const [reportTarget, setReportTarget] = useState(selectedTarget ?? "");
-  const [generateFormat, setGenerateFormat] = useState<"markdown" | "html">(() => loadUiPreferences().reportFormat);
-  const [kindFilter, setKindFilter] = useState<"all" | "markdown" | "html">("all");
+  const [generateFormat, setGenerateFormat] = useState<"markdown" | "html" | "pdf">(() => loadUiPreferences().reportFormat);
+  const [generateTemplate, setGenerateTemplate] = useState<ReportTemplate>(() => loadUiPreferences().reportTemplate);
+  const [kindFilter, setKindFilter] = useState<"all" | "markdown" | "html" | "pdf" | "json" | "sarif">("all");
   const [dateFilter, setDateFilter] = useState<"all" | "today" | "week">("all");
 
   useEffect(() => {
     if (!selectedPath && reportsQuery.data?.[0]?.path) setSelectedPath(reportsQuery.data[0].path);
   }, [selectedPath, reportsQuery.data]);
 
-  useEffect(() => subscribeUiPreferences((preferences) => setGenerateFormat(preferences.reportFormat)), []);
+  useEffect(
+    () =>
+      subscribeUiPreferences((preferences) => {
+        setGenerateFormat(preferences.reportFormat);
+        setGenerateTemplate(preferences.reportTemplate);
+      }),
+    [],
+  );
 
   useEffect(() => {
     if (selectedTarget) {
@@ -83,9 +91,9 @@ export function ReportsPage({ selectedTarget, focus }: ReportsPageProps) {
     try {
       setGenerating(true);
       setError(null);
-      const result = await generateTargetReport(target, generateFormat);
+      const result = await generateTargetReport(target, generateFormat, generateTemplate);
       setStatus(result.path);
-      setSearch(target);
+      setSearch("");
       await reportsQuery.refetch();
       setSelectedPath(result.path);
       setPreviewOpen(true);
@@ -109,12 +117,24 @@ export function ReportsPage({ selectedTarget, focus }: ReportsPageProps) {
   function handleDownload() {
     const content = previewContent;
     if (!content || !selectedReport) return;
-    const mime = previewKind === "html" ? "text/html;charset=utf-8" : "text/markdown;charset=utf-8";
+    if (previewKind === "pdf") {
+      window.open(getReportDownloadUrl(selectedReport.path), "_blank", "noopener,noreferrer");
+      return;
+    }
+    const mime = previewKind === "html"
+      ? "text/html;charset=utf-8"
+      : previewKind === "json" || previewKind === "sarif"
+        ? "application/json;charset=utf-8"
+        : "text/markdown;charset=utf-8";
+    const extension = previewKind === "html" ? "html"
+      : previewKind === "json" ? "json"
+        : previewKind === "sarif" ? "sarif"
+          : "md";
     const blob = new Blob([content], { type: mime });
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement("a");
     anchor.href = url;
-    anchor.download = selectedReport.name || `vulnclaw-report.${previewKind === "html" ? "html" : "md"}`;
+    anchor.download = selectedReport.name || `vulnclaw-report.${extension}`;
     document.body.appendChild(anchor);
     anchor.click();
     anchor.remove();
@@ -161,11 +181,27 @@ export function ReportsPage({ selectedTarget, focus }: ReportsPageProps) {
                 ))}
               </datalist>
             </label>
+            <label className="field report-template-field">
+              <span>{t("reports.template")}</span>
+              <select
+                value={generateTemplate}
+                onChange={(event) => {
+                  const next = event.target.value as ReportTemplate;
+                  setGenerateTemplate(next);
+                  saveUiPreferences({ ...loadUiPreferences(), reportTemplate: next });
+                }}
+              >
+                <option value="pentest">{t("reports.template_pentest")}</option>
+                <option value="executive">{t("reports.template_executive")}</option>
+                <option value="ctf">{t("reports.template_ctf")}</option>
+              </select>
+            </label>
             <label className="field report-format-field">
               <span>{t("reports.format")}</span>
-              <select value={generateFormat} onChange={(event) => setGenerateFormat(event.target.value as "markdown" | "html")}>
+              <select value={generateFormat} onChange={(event) => setGenerateFormat(event.target.value as "markdown" | "html" | "pdf")}>
                 <option value="markdown">{t("reports.markdown")}</option>
                 <option value="html">{t("reports.html")}</option>
+                <option value="pdf">{t("reports.pdf")}</option>
               </select>
             </label>
             <button className="primary-btn" disabled={!canGenerate} onClick={handleGenerate} type="button">
@@ -197,10 +233,13 @@ export function ReportsPage({ selectedTarget, focus }: ReportsPageProps) {
             </label>
             <label className="field">
               <span>{t("reports.format_filter")}</span>
-              <select value={kindFilter} onChange={(event) => setKindFilter(event.target.value as "all" | "markdown" | "html")}>
+              <select value={kindFilter} onChange={(event) => setKindFilter(event.target.value as "all" | "markdown" | "html" | "pdf" | "json" | "sarif")}>
                 <option value="all">{t("reports.all")}</option>
                 <option value="markdown">{t("reports.markdown")}</option>
                 <option value="html">{t("reports.html")}</option>
+                <option value="pdf">{t("reports.pdf")}</option>
+                <option value="json">{t("reports.json")}</option>
+                <option value="sarif">{t("reports.sarif")}</option>
               </select>
             </label>
             <label className="field">
@@ -285,7 +324,7 @@ export function ReportsPage({ selectedTarget, focus }: ReportsPageProps) {
 function reportMatchesFilters(
   report: ReportListItem,
   search: string,
-  kindFilter: "all" | "markdown" | "html",
+  kindFilter: "all" | "markdown" | "html" | "pdf" | "json" | "sarif",
   dateFilter: "all" | "today" | "week",
 ): boolean {
   const keyword = search.trim().toLowerCase();
@@ -324,6 +363,15 @@ function formatSize(value: number, t: TFunction): string {
 
 function reportStatusCopy(report: ReportListItem | null, t: TFunction): string {
   if (!report) return t("reports.no_report_selected");
-  const kind = report.kind === "html" ? t("reports.html_report") : t("reports.markdown_report");
+  const kind =
+    report.kind === "html"
+      ? t("reports.html_report")
+      : report.kind === "json"
+        ? "JSON"
+        : report.kind === "sarif"
+          ? "SARIF"
+          : report.kind === "pdf"
+            ? "PDF"
+            : t("reports.markdown_report");
   return t("reports.report_status", { kind, size: formatSize(report.size_bytes ?? 0, t), date: formatDate(report.modified_at, t) });
 }

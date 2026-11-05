@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { generateTargetReport } from "../api/web";
+import { generateTargetReport, triageFinding } from "../api/web";
 import { SectionCard } from "../components/SectionCard";
-import { useTargetPreviewQuery, useTargetQuery, useTargetsQuery } from "../hooks/queries";
+import { useFindingsQuery, useTargetPreviewQuery, useTargetQuery, useTargetsQuery } from "../hooks/queries";
 import { useT, type TFunction } from "../i18n";
+import type { FindingTriageStatus } from "../types/api";
 import { loadUiPreferences, subscribeUiPreferences, type UiPreferences } from "../utils/preferences";
 import {
   countConstraintViolations,
@@ -24,6 +25,7 @@ interface RiskResultsPageProps {
 
 interface FindingCard {
   id: string;
+  key: string;
   title: string;
   severity: string;
   status: string;
@@ -78,8 +80,10 @@ function extractFindingCards(rawFindings: unknown, t: TFunction): FindingCard[] 
   return rawFindings.slice(0, 24).map((item, index) => {
     const raw = item && typeof item === "object" ? item as Record<string, unknown> : {};
     const title = asText(raw.title, t("risk.default_finding", { index: String(index + 1) }));
+    const vulnType = asText(raw.vuln_type, asText(raw.category, ""));
     return {
       id: asText(raw.finding_id, `${title}-${index}`),
+      key: asText(raw.finding_id, `${title}::${vulnType}`),
       title,
       severity: normalizeSeverity(raw.severity),
       status: asText(raw.verification_status, asText(raw.lifecycle_status, raw.verified ? "verified" : "pending")),
@@ -156,10 +160,15 @@ export function RiskResultsPage({ selectedTarget, onSelectTarget, onOpenHome, on
   const targetValue = selectedTarget ?? localTarget ?? null;
   const targetQuery = useTargetQuery(targetValue);
   const previewQuery = useTargetPreviewQuery(targetValue);
+  const findingsQuery = useFindingsQuery(targetValue);
   const target = targetQuery.data;
   const preview = previewQuery.data;
 
   const findings = useMemo(() => extractFindingCards(target?.raw?.findings, t), [target, t]);
+  const triageMap = useMemo(
+    () => new Map((findingsQuery.data ?? []).map((item) => [item.finding_key, item])),
+    [findingsQuery.data],
+  );
   const criticalOrHigh = findings.filter((item) => severityTone(item.severity) === "danger").length;
   const uniqueTypes = Array.from(new Set(findings.map((item) => item.type).filter(Boolean))).slice(0, 4);
   const portSignals = Array.from(new Set(findings.map((item) => {
@@ -175,6 +184,26 @@ export function RiskResultsPage({ selectedTarget, onSelectTarget, onOpenHome, on
     () => buildActionCards(nextActions, target?.pending_count ?? 0, target?.manual_review_count ?? 0, t),
     [nextActions, target?.pending_count, target?.manual_review_count, t],
   );
+
+  async function handleTriage(
+    findingKey: string,
+    status: FindingTriageStatus,
+    note?: string,
+  ) {
+    if (!targetValue) return;
+    try {
+      setError(null);
+      await triageFinding({
+        target: targetValue,
+        finding_key: findingKey,
+        triage_status: status,
+        note: note ?? triageMap.get(findingKey)?.note ?? "",
+      });
+      await findingsQuery.refetch();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t("error.triage_failed"));
+    }
+  }
 
   async function handleGenerateReport() {
     if (!targetValue) return;
@@ -373,6 +402,33 @@ export function RiskResultsPage({ selectedTarget, onSelectTarget, onOpenHome, on
                         <strong>{t("risk.fix")}</strong>
                         <span>{finding.recommendation}</span>
                       </div>
+                    </div>
+                    <div className="finding-triage-row">
+                      <label className="field">
+                        <span>{t("triage.status")}</span>
+                        <select
+                          value={triageMap.get(finding.key)?.triage_status ?? "new"}
+                          onChange={(event) => void handleTriage(finding.key, event.target.value as FindingTriageStatus)}
+                        >
+                          {(["new", "triaged", "confirmed", "false_positive", "fixed", "risk_accepted"] as FindingTriageStatus[]).map((status) => (
+                            <option key={status} value={status}>{t(`triage.${status}`)}</option>
+                          ))}
+                        </select>
+                      </label>
+                      <label className="field">
+                        <span>{t("triage.note")}</span>
+                        <input
+                          defaultValue={triageMap.get(finding.key)?.note ?? ""}
+                          placeholder={t("triage.note_placeholder")}
+                          onBlur={(event) =>
+                            void handleTriage(
+                              finding.key,
+                              triageMap.get(finding.key)?.triage_status ?? "new",
+                              event.target.value,
+                            )
+                          }
+                        />
+                      </label>
                     </div>
                   </article>
                 ))

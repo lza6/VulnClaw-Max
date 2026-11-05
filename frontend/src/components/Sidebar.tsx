@@ -36,6 +36,7 @@ export function Sidebar<T extends string>({ activeView, activeNavView = activeVi
           <div className="brand-kicker">{t("brand.name")}</div>
           <h1>{t("brand.name")}</h1>
           <p>{t("brand.tagline")}</p>
+          <p className="brand-version">v{__APP_VERSION__}</p>
         </div>
       </div>
 

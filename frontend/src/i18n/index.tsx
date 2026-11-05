@@ -89,6 +89,12 @@ export function I18nProvider({ children }: { children: ReactNode }) {
     return unsubscribe;
   }, []);
 
+  useEffect(() => {
+    document.documentElement.lang = lang;
+    const brand = TRANSLATIONS[lang]["brand.name"] ?? "VulnClaw";
+    document.title = `${brand} Web UI`;
+  }, [lang]);
+
   const value = useMemo<I18nContextValue>(() => {
     const tFn: TFunction = (key, params, fallback) => {
       let text = TRANSLATIONS[lang][key];

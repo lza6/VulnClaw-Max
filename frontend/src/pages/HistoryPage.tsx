@@ -2,9 +2,10 @@ import { useEffect, useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { rollbackTarget } from "../api/web";
 import { ConfirmDialog } from "../components/ConfirmDialog";
+import { RunDetailDialog } from "../components/RunDetailDialog";
 import { SectionCard } from "../components/SectionCard";
 import { useT, type TFunction } from "../i18n";
-import { useTargetDiffQuery, useTargetSnapshotsQuery, useTargetsQuery, useTasksQuery } from "../hooks/queries";
+import { useRunsQuery, useTargetDiffQuery, useTargetSnapshotsQuery, useTargetsQuery, useTasksQuery } from "../hooks/queries";
 import { formatPhaseLabel, formatResumeStrategy, formatTaskCommand, formatTaskStatus, formatTaskTitle } from "../utils/taskLabels";
 
 interface HistoryPageProps {
@@ -39,6 +40,7 @@ export function HistoryPage({ selectedTarget, onSelectTarget, onOpenHome, onOpen
   const queryClient = useQueryClient();
   const targetsQuery = useTargetsQuery();
   const tasksQuery = useTasksQuery();
+  const runsQuery = useRunsQuery();
   const [localTarget, setLocalTarget] = useState("");
   const [fromSnapshotId, setFromSnapshotId] = useState<string | null>(null);
   const [toSnapshotId, setToSnapshotId] = useState<string | null>(null);
@@ -46,6 +48,7 @@ export function HistoryPage({ selectedTarget, onSelectTarget, onOpenHome, onOpen
   const [error, setError] = useState<string | null>(null);
   const [busySnapshot, setBusySnapshot] = useState<string | null>(null);
   const [pendingRollbackId, setPendingRollbackId] = useState<string | null>(null);
+  const [runDetailName, setRunDetailName] = useState<string | null>(null);
 
   useEffect(() => {
     if (selectedTarget) {
@@ -166,6 +169,11 @@ export function HistoryPage({ selectedTarget, onSelectTarget, onOpenHome, onOpen
                   <button className="secondary-btn" type="button" onClick={() => onOpenReports(task.target)}>
                     {t("history.open_reports")}
                   </button>
+                  {task.summary?.run_name && (
+                    <button className="secondary-btn" type="button" onClick={() => setRunDetailName(task.summary?.run_name ?? null)}>
+                      {t("history.view_run")}
+                    </button>
+                  )}
                 </div>
               </article>
             ))}
@@ -208,6 +216,25 @@ export function HistoryPage({ selectedTarget, onSelectTarget, onOpenHome, onOpen
           </div>
         </SectionCard>
       </div>
+
+      <SectionCard title={t("history.runs")}>
+        <div className="list list-scroll history-list">
+          {runsQuery.data?.slice(0, 18).map((run) => (
+            <article key={run.run_name} className="list-item history-task-item">
+              <strong>{run.run_name}</strong>
+              <span>{run.command}</span>
+              <span>{run.status}</span>
+              <span className="muted-inline">{formatTime(run.created_at, t)}</span>
+              <div className="button-row compact-row">
+                <button className="secondary-btn" type="button" onClick={() => setRunDetailName(run.run_name)}>
+                  {t("history.open_run")}
+                </button>
+              </div>
+            </article>
+          ))}
+          {!runsQuery.data?.length && <div className="empty-state">{t("history.no_runs")}</div>}
+        </div>
+      </SectionCard>
 
       <div className="history-grid">
         <SectionCard title={t("history.snapshots")}>
@@ -309,6 +336,7 @@ export function HistoryPage({ selectedTarget, onSelectTarget, onOpenHome, onOpen
           if (snapshotId) void handleRollback(snapshotId);
         }}
       />
+      <RunDetailDialog open={Boolean(runDetailName)} runName={runDetailName} onClose={() => setRunDetailName(null)} />
     </section>
   );
 }

@@ -14,6 +14,7 @@ import {
   formatTaskStatus,
 } from "../utils/taskLabels";
 import { parseOptionalPort } from "../utils/validation";
+import { useProjectsQuery } from "../hooks/queries";
 
 type CheckMode = "quick" | "standard" | "deep" | "continuous";
 
@@ -122,10 +123,12 @@ function uniqueActions(actions: Array<string | undefined>): string[] {
 
 export function HomePage({ selectedTarget, activeTask, latestEvent, taskEvents, onCreateTask, onOpenRisk, onOpenReports, onOpenBoundary }: HomePageProps) {
   const { t } = useT();
+  const projectsQuery = useProjectsQuery();
   const preferences = loadUiPreferences();
   const MODES = useMemo(() => buildModes(t), [t]);
   const ACTION_OPTIONS = useMemo(() => buildActionOptions(t), [t]);
   const [target, setTarget] = useState(selectedTarget ?? "");
+  const [project, setProject] = useState("");
   const [mode, setMode] = useState<CheckMode>(() => preferences.defaultCheckMode);
   const [onlyPort, setOnlyPort] = useState(preferences.defaultBoundary.onlyPort);
   const [onlyHost, setOnlyHost] = useState(preferences.defaultBoundary.onlyHost);
@@ -192,6 +195,7 @@ export function HomePage({ selectedTarget, activeTask, latestEvent, taskEvents, 
       only_path: effectiveOnlyPath || undefined,
       blocked_host: blockedHost.trim() || undefined,
       blocked_path: blockedPath.trim() || undefined,
+      project: project || undefined,
       allow_actions: effectiveAllowActions,
       block_actions: effectiveBlockActions,
     };
@@ -297,6 +301,15 @@ export function HomePage({ selectedTarget, activeTask, latestEvent, taskEvents, 
                 placeholder={"172.16.20.36\nexample.com\n192.0.2.0/24"}
                 aria-label={t("home.ip_domain")}
               />
+            </label>
+            <label className="field field-wide">
+              <span>{t("home.project")}</span>
+              <select value={project} onChange={(event) => setProject(event.target.value)} aria-label={t("home.project")}>
+                <option value="">{t("home.no_project")}</option>
+                {projectsQuery.data?.map((item) => (
+                  <option key={item.slug} value={item.slug}>{item.name}</option>
+                ))}
+              </select>
             </label>
             <label className="field field-wide">
               <span>{t("home.excluded_hosts")}</span>
@@ -437,7 +450,7 @@ export function HomePage({ selectedTarget, activeTask, latestEvent, taskEvents, 
       )}
 
       {activeTask && (
-        <SectionCard title={t("home.running")} aside={<span className="status-badge">{formatTaskStatus(activeTask.status)}</span>}>
+        <SectionCard title={t("home.current_task")} aside={<span className="status-badge">{formatTaskStatus(activeTask.status)}</span>}>
           <div className="check-progress-card">
             <div className="check-progress-head">
               <div>

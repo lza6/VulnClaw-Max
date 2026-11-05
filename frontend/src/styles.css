@@ -1701,12 +1701,12 @@ textarea::placeholder {
 
 .toast-host {
   position: fixed;
-  right: 18px;
+  left: max(12px, calc(var(--sidebar-width) + 24px));
   bottom: 18px;
   z-index: 45;
   display: grid;
   gap: 10px;
-  width: min(360px, calc(100vw - 36px));
+  width: min(360px, calc(100vw - var(--sidebar-width) - var(--quick-rail-width) - 48px));
 }
 
 .toast {
@@ -2984,4 +2984,343 @@ body {
   textarea {
     font-size: 16px;
   }
+}
+
+.brand-version {
+  margin-top: 0.35rem;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 0.68rem;
+  letter-spacing: 0.12em;
+  opacity: 0.55;
+}
+
+.run-detail-dialog {
+  width: min(980px, 94vw);
+}
+
+.run-detail-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+  gap: 1.5rem;
+  padding: 1rem 1.25rem 1.5rem;
+}
+
+.run-detail-grid h4 {
+  margin: 0 0 0.6rem;
+  font-size: 0.78rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  opacity: 0.65;
+}
+
+.run-timeline {
+  max-height: 58vh;
+}
+
+.run-event-payload {
+  display: block;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  font-size: 0.72rem;
+  opacity: 0.7;
+}
+
+@media (max-width: 760px) {
+  .run-detail-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.finding-triage-row {
+  display: grid;
+  grid-template-columns: minmax(160px, 220px) minmax(0, 1fr);
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+}
+
+@media (max-width: 700px) {
+  .finding-triage-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Run detail / report dialogs sit on a dark surface; the app shell is light. */
+.report-dialog {
+  color: #e5eefb;
+}
+
+.report-dialog-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.report-dialog-header > div:first-child {
+  min-width: 0;
+}
+
+.report-dialog-actions {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 8px;
+}
+
+.run-detail-dialog .list-item {
+  color: #203a5e;
+  background: #eef4ff;
+}
+
+.run-detail-dialog .list-item strong {
+  color: #173c70;
+}
+
+.run-detail-dialog .muted-inline {
+  color: #5b7090;
+}
+
+.run-detail-dialog .run-event-payload {
+  color: #24436a;
+  background: #dfeaff;
+}
+
+.run-detail-dialog .empty-state {
+  color: #5b7090;
+  background: #eef4ff;
+}
+
+.run-detail-dialog .run-artifacts code {
+  color: #24436a;
+}
+
+.run-detail-dialog .run-message {
+  color: #ffd7d7;
+  overflow-wrap: anywhere;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ── Integrations panel (settings) ─────────────────────────────── */
+
+.integrations-panel {
+  display: grid;
+  gap: 14px;
+}
+
+.integrations-list {
+  display: grid;
+  gap: 10px;
+}
+
+.integration-item {
+  display: grid;
+  gap: 6px;
+  align-items: start;
+}
+
+.integration-item-head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.integration-item-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 4px;
+}
+
+.integration-form {
+  border-top: 1px solid var(--line);
+  padding-top: 14px;
+  align-content: start;
+}
+
+.check-row-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  background: rgba(77, 130, 214, 0.12);
+  color: #3f6ea8;
+}
+
+.badge-webhook {
+  background: rgba(85, 205, 162, 0.18);
+  color: #22785a;
+}
+
+.badge-jira {
+  background: rgba(77, 130, 214, 0.16);
+  color: #2f5f9e;
+}
+
+.badge-defectdojo {
+  background: rgba(243, 153, 104, 0.2);
+  color: #a4571f;
+}
+
+.status-ok {
+  color: #22785a;
+  font-size: 12px;
+}
+
+.status-muted {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.danger-text-btn {
+  color: #c0392b;
+}
+
+/* ── Plugins page ──────────────────────────────────────────────── */
+
+.plugins-page {
+  display: grid;
+  gap: 18px;
+}
+
+.plugin-filter-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.plugin-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 14px;
+  align-items: start;
+}
+
+.plugin-card {
+  display: grid;
+  gap: 8px;
+  align-content: start;
+  padding: 14px 16px;
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(112, 145, 189, 0.2);
+  background: rgba(255, 255, 255, 0.86);
+  color: var(--text);
+}
+
+.plugin-card p {
+  margin: 0;
+}
+
+.plugin-card-head {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.plugin-card-head strong {
+  font-size: 15px;
+  color: #24436a;
+}
+
+.plugin-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.plugin-tag {
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  background: rgba(112, 145, 189, 0.14);
+  color: #3f6ea8;
+}
+
+.plugin-tag-danger {
+  background: rgba(255, 102, 92, 0.16);
+  color: #c0392b;
+}
+
+.plugin-card code {
+  font-size: 12px;
+  color: #2f69c6;
+  background: rgba(77, 130, 214, 0.1);
+  border-radius: 6px;
+  padding: 2px 6px;
+  overflow-wrap: anywhere;
+}
+
+/* Report center: the preview column is often much taller than the file list, and
+   stretching the shorter card distributed its children's spare space as gaps. */
+.report-center-grid > .section-card {
+  align-content: start;
+}
+
+/* ── Schedules panel (settings) ────────────────────────────────── */
+
+.schedules-panel {
+  display: grid;
+  gap: 14px;
+}
+
+.schedules-list {
+  display: grid;
+  gap: 10px;
+}
+
+.schedule-item {
+  display: grid;
+  gap: 6px;
+  align-items: start;
+}
+
+.schedule-options {
+  font-size: 12px;
+  color: #2f69c6;
+  background: rgba(77, 130, 214, 0.1);
+  border-radius: 6px;
+  padding: 2px 6px;
+  overflow-wrap: anywhere;
+}
+
+/* ── Integration delivery history ──────────────────────────────── */
+
+.delivery-history {
+  display: grid;
+  gap: 8px;
+  border-top: 1px solid var(--line);
+  padding-top: 14px;
+}
+
+.delivery-history-list {
+  display: grid;
+  gap: 8px;
+}
+
+.delivery-history-item {
+  display: grid;
+  gap: 4px;
+  padding: 10px 12px;
+  font-size: 13px;
 }

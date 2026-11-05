@@ -2,12 +2,25 @@ import type {
   ConfigView,
   ConstraintAuditView,
   ConfigUpdateRequest,
+  FindingTriageRequest,
+  FindingView,
+  IntegrationDeliveryLogView,
+  IntegrationDeliveryResult,
+  IntegrationUpsertRequest,
+  IntegrationView,
   MCPDiagnosticsView,
+  PluginInventoryView,
   ProviderModelsRequest,
   ProviderModelsResponse,
   ProvidersView,
+  ProjectView,
   ReportListItem,
   ReportContentView,
+  ReportTemplate,
+  RunDetail,
+  ScheduleUpsertRequest,
+  ScheduleView,
+  RunSummary,
   TargetPreviewView,
   TargetSnapshotView,
   TargetStateDiffView,
@@ -150,6 +163,29 @@ export function getTargetDiff(target: string, fromSnapshotId: string, toSnapshot
   return requestJson<TargetStateDiffView>(`/api/target-diff/${encodeURIComponent(target)}?${params.toString()}`);
 }
 
+export function getProjects(): Promise<ProjectView[]> {
+  return requestJson<ProjectView[]>("/api/projects");
+}
+
+export function getFindings(target: string): Promise<FindingView[]> {
+  return requestJson<FindingView[]>(`/api/findings?target=${encodeURIComponent(target)}`);
+}
+
+export function triageFinding(payload: FindingTriageRequest): Promise<FindingView> {
+  return requestJson<FindingView>("/api/findings/triage", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function getRuns(): Promise<RunSummary[]> {
+  return requestJson<RunSummary[]>("/api/runs");
+}
+
+export function getRunDetail(runName: string): Promise<RunDetail> {
+  return requestJson<RunDetail>(`/api/runs/${encodeURIComponent(runName)}`);
+}
+
 export function getReports(): Promise<ReportListItem[]> {
   return requestJson<ReportListItem[]>("/api/reports");
 }
@@ -177,12 +213,38 @@ export function clearTargetState(target: string): Promise<{ status: string; targ
 
 export function generateTargetReport(
   target: string,
-  reportFormat: "markdown" | "html" = "markdown",
+  reportFormat: "markdown" | "html" | "pdf" = "markdown",
+  template: ReportTemplate = "pentest",
 ): Promise<{ status: string; path: string }> {
   return requestJson("/api/reports/target", {
     method: "POST",
-    body: JSON.stringify({ target, report_format: reportFormat }),
+    body: JSON.stringify({ target, report_format: reportFormat, template }),
   });
+}
+
+export function getIntegrations(): Promise<IntegrationView[]> {
+  return requestJson<IntegrationView[]>("/api/integrations");
+}
+
+export function saveIntegration(payload: IntegrationUpsertRequest): Promise<IntegrationView> {
+  return requestJson<IntegrationView>("/api/integrations", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function deleteIntegration(name: string): Promise<{ status: string; name: string }> {
+  return requestJson(`/api/integrations/${encodeURIComponent(name)}`, { method: "DELETE" });
+}
+
+export function testIntegration(name: string): Promise<IntegrationDeliveryResult> {
+  return requestJson<IntegrationDeliveryResult>(`/api/integrations/${encodeURIComponent(name)}/test`, {
+    method: "POST",
+  });
+}
+
+export function getPlugins(): Promise<PluginInventoryView> {
+  return requestJson<PluginInventoryView>("/api/plugins");
 }
 
 export function createTask(command: TaskCommand, target: string, resume: boolean, options: TaskOptions = {}): Promise<TaskRecord> {
@@ -215,13 +277,48 @@ export function openTaskStream(taskId: string, onEvent: (event: TaskEvent) => vo
   };
 
   source.addEventListener("task_created", handler as EventListener);
+  source.addEventListener("task_queued", handler as EventListener);
+  source.addEventListener("task_restoring", handler as EventListener);
   source.addEventListener("task_started", handler as EventListener);
   source.addEventListener("task_state_changed", handler as EventListener);
+  source.addEventListener("legacy_import", handler as EventListener);
   source.addEventListener("round_output", handler as EventListener);
   source.addEventListener("cycle_completed", handler as EventListener);
   source.addEventListener("task_completed", handler as EventListener);
   source.addEventListener("task_failed", handler as EventListener);
   source.addEventListener("task_stopped", handler as EventListener);
+  source.addEventListener("task_interrupted", handler as EventListener);
+  source.addEventListener("event_gap", handler as EventListener);
   source.onmessage = handler;
   return source;
+}
+export function getIntegrationDeliveries(name?: string, limit = 50): Promise<IntegrationDeliveryLogView[]> {
+  const params = new URLSearchParams({ limit: String(limit) });
+  if (name) params.set("name", name);
+  return requestJson<IntegrationDeliveryLogView[]>(`/api/integrations/deliveries?${params.toString()}`);
+}
+
+export function retryIntegrationDelivery(name: string): Promise<IntegrationDeliveryResult> {
+  return requestJson<IntegrationDeliveryResult>(`/api/integrations/${encodeURIComponent(name)}/retry`, {
+    method: "POST",
+  });
+}
+
+export function getSchedules(): Promise<ScheduleView[]> {
+  return requestJson<ScheduleView[]>("/api/schedules");
+}
+
+export function saveSchedule(payload: ScheduleUpsertRequest): Promise<ScheduleView> {
+  return requestJson<ScheduleView>("/api/schedules", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function deleteSchedule(name: string): Promise<{ status: string; name: string }> {
+  return requestJson(`/api/schedules/${encodeURIComponent(name)}`, { method: "DELETE" });
+}
+
+export function runDueSchedules(): Promise<ScheduleView[]> {
+  return requestJson<ScheduleView[]>("/api/schedules/run-due", { method: "POST" });
 }

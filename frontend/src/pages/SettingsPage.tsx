@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import type { ConfigView } from "../types/api";
 import { fetchProviderModels, updateConfig } from "../api/web";
+import { IntegrationsPanel } from "../components/IntegrationsPanel";
+import { SchedulesPanel } from "../components/SchedulesPanel";
 import { SectionCard } from "../components/SectionCard";
 import { useConfigQuery, useMcpDiagnosticsQuery, useProvidersQuery } from "../hooks/queries";
 import { useT, type TFunction } from "../i18n";
@@ -8,7 +10,7 @@ import { formatActionLabel, formatActionList, formatMcpExecutionMode, formatMcpH
 import { loadUiPreferences, saveUiPreferences, type UiPreferences } from "../utils/preferences";
 import { parseOptionalPort } from "../utils/validation";
 
-type SettingsSection = "basic" | "ai" | "checks" | "boundary" | "data" | "python" | "diagnostics";
+type SettingsSection = "basic" | "ai" | "checks" | "boundary" | "data" | "integrations" | "schedules" | "python" | "diagnostics";
 
 function buildSections(t: TFunction): Array<{ key: SettingsSection; title: string; copy: string }> {
   return [
@@ -17,6 +19,8 @@ function buildSections(t: TFunction): Array<{ key: SettingsSection; title: strin
     { key: "checks", title: t("settings.scan_policy"), copy: t("settings.scan_policy_copy") },
     { key: "boundary", title: t("settings.boundary"), copy: t("settings.boundary_copy") },
     { key: "data", title: t("settings.data"), copy: t("settings.data_copy") },
+    { key: "integrations", title: t("settings.integrations"), copy: t("settings.integrations_copy") },
+    { key: "schedules", title: t("settings.schedules"), copy: t("settings.schedules_copy") },
     { key: "python", title: t("settings.scripts"), copy: t("settings.scripts_copy") },
     { key: "diagnostics", title: t("settings.diagnostics"), copy: t("settings.diagnostics_copy") },
   ];
@@ -81,6 +85,8 @@ export function SettingsPage({ initialSection = "basic", onOpenAdvanced }: Setti
   const [language, setLanguage] = useState<UiPreferences["language"]>("en-US");
   const [defaultCheckMode, setDefaultCheckMode] = useState<UiPreferences["defaultCheckMode"]>("standard");
   const [reportFormat, setReportFormat] = useState<UiPreferences["reportFormat"]>("markdown");
+  const [reportTemplate, setReportTemplate] = useState<UiPreferences["reportTemplate"]>("pentest");
+  const [configReportTemplate, setConfigReportTemplate] = useState<ConfigView["report_template"]>("pentest");
   const [showTechnicalLogs, setShowTechnicalLogs] = useState(false);
   const [defaultOnlyPort, setDefaultOnlyPort] = useState("");
   const [defaultOnlyHost, setDefaultOnlyHost] = useState("");
@@ -98,6 +104,7 @@ export function SettingsPage({ initialSection = "basic", onOpenAdvanced }: Setti
     setLanguage(preferences.language);
     setDefaultCheckMode(preferences.defaultCheckMode);
     setReportFormat(preferences.reportFormat);
+    setReportTemplate(preferences.reportTemplate);
     setShowTechnicalLogs(preferences.showTechnicalLogs);
     setDefaultOnlyPort(preferences.defaultBoundary.onlyPort);
     setDefaultOnlyHost(preferences.defaultBoundary.onlyHost);
@@ -117,6 +124,7 @@ export function SettingsPage({ initialSection = "basic", onOpenAdvanced }: Setti
     setBaseUrl(configQuery.data.base_url);
     setReportLanguage(configQuery.data.language);
     setOutputDir(configQuery.data.output_dir);
+    setConfigReportTemplate(configQuery.data.report_template ?? "pentest");
     setMaxRounds(configQuery.data.max_rounds);
     setMaxContextTokens(configQuery.data.max_context_tokens);
     setContextAutoCompact(configQuery.data.context_auto_compact);
@@ -188,6 +196,7 @@ export function SettingsPage({ initialSection = "basic", onOpenAdvanced }: Setti
       language,
       defaultCheckMode,
       reportFormat,
+      reportTemplate,
       showTechnicalLogs,
       defaultBoundary: {
         onlyPort: defaultOnlyPort,
@@ -220,6 +229,7 @@ export function SettingsPage({ initialSection = "basic", onOpenAdvanced }: Setti
         base_url: baseUrl,
         language: reportLanguage,
         output_dir: outputDir,
+        report_template: configReportTemplate,
         max_rounds: maxRounds,
         max_context_tokens: maxContextTokens,
         context_auto_compact: contextAutoCompact,
@@ -305,6 +315,18 @@ export function SettingsPage({ initialSection = "basic", onOpenAdvanced }: Setti
                   <option value="markdown">Markdown</option>
                   <option value="html">HTML</option>
                 </select>
+              </label>
+              <label className="field">
+                <span>{t("settings.default_report_template")}</span>
+                <select
+                  value={reportTemplate}
+                  onChange={(event) => setReportTemplate(event.target.value as UiPreferences["reportTemplate"])}
+                >
+                  <option value="pentest">{t("reports.template_pentest")}</option>
+                  <option value="executive">{t("reports.template_executive")}</option>
+                  <option value="ctf">{t("reports.template_ctf")}</option>
+                </select>
+                <small>{t("settings.default_report_template_hint")}</small>
               </label>
               <label className="check-row">
                 <input checked={showTechnicalLogs} onChange={(event) => setShowTechnicalLogs(event.target.checked)} type="checkbox" />
@@ -541,12 +563,28 @@ export function SettingsPage({ initialSection = "basic", onOpenAdvanced }: Setti
                 <span>{t("settings.output_dir")}</span>
                 <input value={outputDir} onChange={(event) => setOutputDir(event.target.value)} />
               </label>
+              <label className="field">
+                <span>{t("settings.auto_report_template")}</span>
+                <select
+                  value={configReportTemplate}
+                  onChange={(event) => setConfigReportTemplate(event.target.value as ConfigView["report_template"])}
+                >
+                  <option value="pentest">{t("reports.template_pentest")}</option>
+                  <option value="executive">{t("reports.template_executive")}</option>
+                  <option value="ctf">{t("reports.template_ctf")}</option>
+                </select>
+                <small>{t("settings.auto_report_template_hint")}</small>
+              </label>
               <div className="inline-panel field-wide">
                 <strong>{t("settings.reports_note")}</strong>
                 <p className="inline-note">{t("settings.reports_note_text")}</p>
               </div>
             </div>
           )}
+
+          {activeSection === "integrations" && <IntegrationsPanel />}
+
+          {activeSection === "schedules" && <SchedulesPanel />}
 
           {activeSection === "python" && (
             <div className="form-grid">
@@ -618,11 +656,13 @@ export function SettingsPage({ initialSection = "basic", onOpenAdvanced }: Setti
             </div>
           )}
 
-          <div className="button-row">
-            <button className="primary-btn" disabled={saving || activeSection === "diagnostics"} onClick={handleSave} type="button">
-              {saving ? t("settings.saving") : saveButtonLabel}
-            </button>
-          </div>
+          {activeSection !== "integrations" && activeSection !== "schedules" && (
+            <div className="button-row">
+              <button className="primary-btn" disabled={saving || activeSection === "diagnostics"} onClick={handleSave} type="button">
+                {saving ? t("settings.saving") : saveButtonLabel}
+              </button>
+            </div>
+          )}
 
           {status && <div className="success-box">{status}</div>}
           {error && <div className="error-box">{error}</div>}

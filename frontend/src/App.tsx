@@ -6,19 +6,20 @@ import { ConfirmDialog } from "./components/ConfirmDialog";
 import { ToastHost, type ToastItem, type ToastTone } from "./components/ToastHost";
 import { HistoryPage } from "./pages/HistoryPage";
 import { HomePage } from "./pages/HomePage";
+import { PluginsPage } from "./pages/PluginsPage";
 import { ReportsPage } from "./pages/ReportsPage";
 import { RiskResultsPage } from "./pages/RiskResultsPage";
 import { SafetyBoundaryPage } from "./pages/SafetyBoundaryPage";
 import { SettingsPage } from "./pages/SettingsPage";
 import { TaskConsolePage } from "./pages/TaskConsolePage";
-import { createTask, openTaskStream, stopTask } from "./api/web";
+import { createTask, getTasks, openTaskStream, stopTask } from "./api/web";
 import { useConfigQuery } from "./hooks/queries";
 import { useT, type TFunction } from "./i18n";
 import type { TaskCommand, TaskEvent, TaskOptions, TaskRecord, TaskSummary } from "./types/api";
 import { formatTaskTitle } from "./utils/taskLabels";
 
-type AppView = "home" | "risk" | "reports" | "boundary" | "history" | "settings" | "advanced";
-type SettingsSection = "basic" | "ai" | "checks" | "boundary" | "data" | "python" | "diagnostics";
+type AppView = "home" | "risk" | "reports" | "boundary" | "history" | "plugins" | "settings" | "advanced";
+type SettingsSection = "basic" | "ai" | "checks" | "boundary" | "data" | "integrations" | "schedules" | "python" | "diagnostics";
 
 interface ReportFocus {
   target: string | null;
@@ -53,6 +54,11 @@ function buildViewMeta(t: TFunction): Record<AppView, { eyebrow: string; title: 
       title: t("view.history.title"),
       copy: t("view.history.copy"),
     },
+    plugins: {
+      eyebrow: t("view.plugins.eyebrow"),
+      title: t("view.plugins.title"),
+      copy: t("view.plugins.copy"),
+    },
     settings: {
       eyebrow: t("view.settings.eyebrow"),
       title: t("view.settings.title"),
@@ -72,6 +78,7 @@ const HASH_TO_VIEW: Record<string, AppView> = {
   reports: "reports",
   boundary: "boundary",
   history: "history",
+  plugins: "plugins",
   settings: "settings",
   advanced: "advanced",
 };
@@ -107,6 +114,7 @@ export function App() {
       { key: "reports" as const, label: t("nav.reports"), description: "", icon: "/icons/sidebar/reports.svg" },
       { key: "boundary" as const, label: t("nav.scope"), description: "", icon: "/icons/sidebar/scope.svg" },
       { key: "history" as const, label: t("nav.history"), description: "", icon: "/icons/sidebar/history.svg" },
+      { key: "plugins" as const, label: t("nav.plugins"), description: "", icon: "/icons/sidebar/plugins.svg" },
       { key: "settings" as const, label: t("nav.settings"), description: "", icon: "/icons/sidebar/settings.svg" },
     ],
     [t],
@@ -163,7 +171,18 @@ export function App() {
   useEffect(() => {
     if (!activeTask) return;
     const source = openTaskStream(activeTask.task_id, (event) => {
+      if (["task_completed", "task_failed", "task_stopped", "task_interrupted"].includes(event.event)) {
+        source.close();
+      }
       setTaskEvents((prev) => [...prev.slice(-79), event]);
+      const nextStatus = event.payload.status;
+      if (typeof nextStatus === "string") {
+        setActiveTask((prev) =>
+          prev && prev.task_id === event.task_id
+            ? { ...prev, status: nextStatus as TaskRecord["status"] }
+            : prev,
+        );
+      }
       if (event.event === "task_completed") {
         const summary = eventSummary(event);
         setActiveTask((prev) =>
@@ -213,10 +232,25 @@ export function App() {
 
   async function handleStopTask() {
     if (!activeTask) return;
-    await stopTask(activeTask.task_id);
-    setActiveTask((prev) => (prev ? { ...prev, status: "stopped" } : prev));
-    refreshTaskData(activeTask.target);
-    pushToast("info", t("toast.stop_sent"), t("toast.stop_sent_copy"));
+    try {
+      await stopTask(activeTask.task_id);
+      pushToast("info", t("toast.stop_sent"), t("toast.stop_sent_copy"));
+    } catch (error) {
+      pushToast(
+        "error",
+        t("toast.stop_failed"),
+        error instanceof Error ? error.message : t("toast.stop_failed_copy"),
+      );
+    } finally {
+      refreshTaskData(activeTask.target);
+      try {
+        const tasks = await getTasks();
+        const refreshed = tasks.find((task) => task.task_id === activeTask.task_id);
+        if (refreshed) setActiveTask(refreshed);
+      } catch {
+        // The status event stream remains the source of truth.
+      }
+    }
   }
 
   function openBoundaryForActiveTask() {
@@ -358,6 +392,8 @@ export function App() {
           }}
         />
       )}
+
+      {activeView === "plugins" && <PluginsPage />}
 
       {activeView === "settings" && <SettingsPage initialSection={settingsSection} onOpenAdvanced={() => navigateToView("advanced")} />}
 

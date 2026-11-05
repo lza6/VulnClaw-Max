@@ -356,6 +356,15 @@ export function TaskConsolePage({
                 {activeTask.summary?.constraints && Object.keys(activeTask.summary.constraints).length > 0 && (
                   <div className="terminal-line dim">{t("console.boundary_line", { boundary: formatConstraintSummary(activeTask.summary.constraints) })}</div>
                 )}
+                {Boolean(activeTask.summary?.tokens_total) && (
+                  <div className="terminal-line dim">
+                    {t("console.token_line", {
+                      input: String(activeTask.summary?.tokens_input ?? 0),
+                      output: String(activeTask.summary?.tokens_output ?? 0),
+                      total: String(activeTask.summary?.tokens_total ?? 0),
+                    })}
+                  </div>
+                )}
               </>
             ) : (
               <div className="terminal-line dim">{t("console.no_running")}</div>

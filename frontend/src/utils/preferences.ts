@@ -1,7 +1,10 @@
+export type ReportTemplate = "pentest" | "executive" | "ctf";
+
 export interface UiPreferences {
   language: "zh-CN" | "en-US";
   defaultCheckMode: "quick" | "standard" | "deep" | "continuous";
   reportFormat: "markdown" | "html";
+  reportTemplate: ReportTemplate;
   showTechnicalLogs: boolean;
   defaultBoundary: BoundaryDefaults;
 }
@@ -19,10 +22,27 @@ export interface BoundaryDefaults {
 const STORAGE_KEY = "vulnclaw.ui.preferences";
 export const UI_PREFERENCES_EVENT = "vulnclaw.ui.preferences.updated";
 
+/**
+ * 首次访问时的界面语言：先看浏览器是否偏好中文/英文，其它语种回落中文。
+ * 用户在设置页显式保存过的偏好始终优先（见 loadUiPreferences）。
+ */
+function detectDefaultLanguage(): UiPreferences["language"] {
+  const candidates = typeof navigator === "undefined"
+    ? []
+    : [...(navigator.languages ?? []), navigator.language];
+  for (const tag of candidates) {
+    const lowered = String(tag ?? "").toLowerCase();
+    if (lowered.startsWith("zh")) return "zh-CN";
+    if (lowered.startsWith("en")) return "en-US";
+  }
+  return "en-US";
+}
+
 export const DEFAULT_UI_PREFERENCES: UiPreferences = {
-  language: "en-US",
+  language: detectDefaultLanguage(),
   defaultCheckMode: "standard",
   reportFormat: "markdown",
+  reportTemplate: "pentest",
   showTechnicalLogs: false,
   defaultBoundary: {
     onlyPort: "",
@@ -44,6 +64,7 @@ export function loadUiPreferences(): UiPreferences {
       language: parsed.language === "zh-CN" ? "zh-CN" : "en-US",
       defaultCheckMode: isCheckMode(parsed.defaultCheckMode) ? parsed.defaultCheckMode : DEFAULT_UI_PREFERENCES.defaultCheckMode,
       reportFormat: parsed.reportFormat === "html" ? "html" : "markdown",
+      reportTemplate: isReportTemplate(parsed.reportTemplate) ? parsed.reportTemplate : "pentest",
       showTechnicalLogs: Boolean(parsed.showTechnicalLogs),
       defaultBoundary: normalizeBoundaryDefaults(parsed.defaultBoundary),
     };
@@ -73,6 +94,10 @@ export function subscribeUiPreferences(onChange: (preferences: UiPreferences) =>
     window.removeEventListener(UI_PREFERENCES_EVENT, handleLocalUpdate);
     window.removeEventListener("storage", handleStorageUpdate);
   };
+}
+
+function isReportTemplate(value: unknown): value is UiPreferences["reportTemplate"] {
+  return value === "pentest" || value === "executive" || value === "ctf";
 }
 
 function isCheckMode(value: unknown): value is UiPreferences["defaultCheckMode"] {

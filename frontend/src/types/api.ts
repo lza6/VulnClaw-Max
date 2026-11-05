@@ -1,6 +1,14 @@
 export type TaskCommand = "run" | "recon" | "scan" | "exploit" | "persistent";
 
-export type TaskStatus = "pending" | "restoring" | "running" | "completed" | "failed" | "stopped";
+export type TaskStatus =
+  | "pending"
+  | "queued"
+  | "restoring"
+  | "running"
+  | "completed"
+  | "failed"
+  | "stopped"
+  | "interrupted";
 
 export type ReportLanguage = "auto" | "zh" | "en";
 
@@ -11,6 +19,8 @@ export interface ConfigView {
   api_key_configured: boolean;
   language: ReportLanguage;
   output_dir: string;
+  report_format: string;
+  report_template: ReportTemplate;
   max_rounds: number;
   max_context_tokens: number;
   context_auto_compact: boolean;
@@ -36,6 +46,7 @@ export interface ConfigUpdateRequest {
   base_url?: string;
   language?: ReportLanguage;
   output_dir?: string;
+  report_template?: ReportTemplate;
   max_rounds?: number;
   max_context_tokens?: number;
   context_auto_compact?: boolean;
@@ -131,6 +142,10 @@ export interface TargetPreviewView {
   constraints: Record<string, unknown>;
   constraint_violations: string[];
   constraint_violation_events: Record<string, unknown>[];
+  tokens_input?: number;
+  tokens_output?: number;
+  tokens_total?: number;
+  llm_calls?: number;
 }
 
 export interface TargetStateDiffView {
@@ -166,7 +181,17 @@ export interface ReportContentView {
   content: string;
 }
 
+export interface ProjectView {
+  slug: string;
+  name: string;
+  customer: string;
+  scope: string;
+  created_at: string;
+  targets: string[];
+}
+
 export interface TaskOptions {
+  project?: string;
   max_rounds?: number;
   rounds_per_cycle?: number;
   max_cycles?: number;
@@ -206,6 +231,10 @@ export interface TaskSummary {
   constraints: Record<string, unknown>;
   constraint_violations: string[];
   constraint_violation_events: Record<string, unknown>[];
+  tokens_input?: number;
+  tokens_output?: number;
+  tokens_total?: number;
+  llm_calls?: number;
 }
 
 export interface TaskRecord {
@@ -282,4 +311,155 @@ export interface ConstraintAuditView {
   by_source: Record<string, number>;
   by_code: Record<string, number>;
   recent_events: ConstraintAuditEventView[];
+}
+
+export interface RunSummary {
+  run_name: string;
+  command: string;
+  status: string;
+  created_at: string;
+  started_at: string;
+  ended_at: string;
+  exit_code: number;
+  message: string;
+  targets: string[];
+}
+
+export interface RunEvent {
+  timestamp: string;
+  kind: string;
+  payload: Record<string, unknown>;
+}
+
+export interface RunDetail extends RunSummary {
+  run_dir: string;
+  artifacts: Record<string, string>;
+  resume: Record<string, unknown>;
+  events: RunEvent[];
+  findings: unknown;
+  reports: string[];
+}
+
+export type FindingTriageStatus =
+  | "new"
+  | "triaged"
+  | "confirmed"
+  | "false_positive"
+  | "fixed"
+  | "risk_accepted";
+
+export interface FindingView {
+  finding_key: string;
+  title: string;
+  severity: string;
+  vuln_type: string;
+  lifecycle_status: string;
+  verified: boolean;
+  triage_status: FindingTriageStatus;
+  note: string;
+  assignee: string;
+}
+
+export interface FindingTriageRequest {
+  target: string;
+  finding_key: string;
+  triage_status: FindingTriageStatus;
+  note?: string;
+  assignee?: string;
+}
+
+export type IntegrationKind = "webhook" | "jira" | "defectdojo";
+
+export type IntegrationEvent = "run.completed" | "run.failed";
+
+export interface IntegrationView {
+  name: string;
+  kind: IntegrationKind;
+  url: string;
+  project_key: string;
+  enabled: boolean;
+  token_configured: boolean;
+  events: IntegrationEvent[];
+}
+
+export interface IntegrationUpsertRequest {
+  name: string;
+  kind: IntegrationKind;
+  url: string;
+  token?: string;
+  project_key?: string;
+  enabled?: boolean;
+  events?: IntegrationEvent[];
+}
+
+export interface IntegrationDeliveryResult {
+  name: string;
+  ok: boolean;
+  attempts: number;
+  status_code?: number | null;
+  error: string;
+}
+
+export interface PluginView {
+  plugin_id: string;
+  name: string;
+  version: string;
+  description: string;
+  stages: string[];
+  default_risk: string;
+  enabled: boolean;
+  destructive: boolean;
+  requires_target: boolean;
+  tags: string[];
+  permissions: string[];
+  min_core_version: string;
+  origin: "builtin" | "external";
+}
+
+export interface PluginLoadError {
+  entry_point: string;
+  error: string;
+}
+
+export interface PluginInventoryView {
+  plugins: PluginView[];
+  errors: PluginLoadError[];
+}
+
+export type ReportTemplate = "pentest" | "executive" | "ctf";
+
+export interface IntegrationDeliveryLogView {
+  at: string;
+  name: string;
+  kind: "run" | "findings" | "test";
+  event: string;
+  target: string;
+  ok: boolean;
+  attempts: number;
+  status_code?: number | null;
+  error: string;
+  items: number;
+  retryable: boolean;
+}
+
+export type ScheduleCommand = "run" | "recon" | "scan" | "exploit" | "persistent" | "codescan";
+
+export interface ScheduleView {
+  name: string;
+  target: string;
+  command: ScheduleCommand;
+  interval_seconds: number;
+  enabled: boolean;
+  options: Record<string, unknown>;
+  last_run: number | null;
+  next_run: number | null;
+}
+
+export interface ScheduleUpsertRequest {
+  name: string;
+  target: string;
+  command: ScheduleCommand;
+  interval_seconds: number;
+  enabled: boolean;
+  options: Record<string, unknown>;
 }
