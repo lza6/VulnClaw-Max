@@ -32,7 +32,7 @@
 - **版本单一来源 + 前端测试** — `vulnclaw.__version__` 为唯一真值，Vite 注入版本；新增 Vitest/Testing Library 用例并接入 CI。
 - **长稳脚本** — `scripts/soak_web.py` 用 codescan 任务、SSE 重连与 RSS 采样做本地 soak。
 - **目标索引与启动优化** — `targets/index.json` 让 500 目标列表降到 0.012 s；CLI 延迟导入让 `--help` 降到约 0.45 s。
-- **质量门禁** — 全仓覆盖率 82.37%，`fail_under=82`，`[tool.coverage.run]` 不再排除任何模块：交互 TUI 与首启向导用假控制台/假 prompt_toolkit Application 驱动，MCP 生命周期用假 SDK 传输覆盖。
+- **质量门禁** — 全仓覆盖率 82.40%，`fail_under=82`，`[tool.coverage.run]` 不再排除任何模块：交互 TUI 与首启向导用假控制台/假 prompt_toolkit Application 驱动，MCP 生命周期用假 SDK 传输覆盖。
 - **集成导出** — webhook/Jira/DefectDojo 适配器、重试/幂等/超时，`/api/integrations` 配置与触达。
 - **调度** — 进程内 interval scheduler、`/api/schedules`、lifespan 5s 轮询。
 - **离线模式** — 全局 `--offline`，doctor 与 provider 探测自动跳过。
@@ -47,6 +47,7 @@
 - **投递记录与重试** — 每次投递（运行通知/发现项/测试）写入有界历史（最近 100 条），设置页显示上一次投递结果与最近记录；
   最近一次运行通知失败时可一键重投，成功后不再重复重投。投递失败仍只记日志，不改变任务状态。
 - **修复：选择项目导致任务创建 422** — `options.project` 被“命令无关选项”校验拦下，首页项目选择器一选项目就 422；`project` 现为跨命令字段。
+- **清理：删除 `vulnclaw/cli/__init__.py` 里过期的 `_generate_report_for_target` 副本** — 该方法与 `cli/_helpers.py` 的实现重复且不带 `template` 参数，任何调用都会绕过新的模板逻辑；保留 `cli/_helpers.py` 作为唯一实现。
 - **修复：目标子路由被通配路由遮蔽** — `{target:path}` 注册在 `/raw`、`/snapshots`、`/rollback` 之前，导致历史页的快照列表与差异对比恒为空；通配路由改为最后注册。
 - **插件样例包与清单界面** — 新增可安装的样例插件 `examples/plugins/vulnclaw-plugin-demo`（`Set-Cookie` 安全属性检测）；`/api/plugins` 汇总内置与 `vulnclaw.plugins` 入口点插件，单个坏入口点只记录为加载错误，不再整体失败；Web 新增插件页（阶段/来源筛选、搜索）。
 - **真实 E2E** — Playwright + 本地 mock LLM，覆盖首页任务、运行详情、发现处置、报告 SARIF 下载、stop 409 与终态 SSE，以及集成配置的保存/测试/删除、executive 模板报告生成、插件清单筛选、任务完成通知投递、投递历史、定时任务增删改、项目关联任务、历史快照（13 条用例）；CI 增加前端 E2E step。

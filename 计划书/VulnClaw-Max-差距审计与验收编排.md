@@ -403,6 +403,6 @@
 2. Stage 2 13 条 E2E 已完成（新增集成配置增删改/测试、任务通知投递与投递历史、定时任务增删改、executive 模板报告、插件清单筛选、项目关联任务、历史快照）；剩余窄屏/键盘/console error 矩阵。
 3. Stage 3 已完成：F-05 任务/项目/报告路由、CLI `--project`（并修复 `options.project` 422）；F-07 PDF/SARIF/JSON、报告密钥脱敏、`pentest/executive/ctf` 三模板（`vulnclaw report --template`、Web 报告中心、`session.report_template` 决定自动报告）。剩余：跨项目列表过滤。
 4. Stage 4 已完成：F-10 集成 dispatch/config + 设置页「集成」分区（增删改/令牌保留/订阅事件/一键测试/投递记录与重投）、F-11 interval scheduler + 设置页「自动化」分区（定时任务增删改启停）+ 任务终态通知覆盖 webhook/Jira/DefectDojo、F-13 offline、F-14 entry_points/权限/版本 + 样例插件包 + `/api/plugins` 与 Web 插件页。
-5. Stage 5 主要完成：0.5.0 版本、目标索引（0.012s）、`--help` 0.45s、全仓覆盖率 82.37%（不排除任何模块）、security/docker workflow、SBOM step；仍缺 24h 长稳与 security/docker workflow 的 CI 实跑。
+5. Stage 5 主要完成：0.5.0 版本、目标索引（0.012s）、`--help` 0.45s、全仓覆盖率 82.40%（不排除任何模块）、security/docker workflow、SBOM step；仍缺 24h 长稳与 security/docker workflow 的 CI 实跑。
 
 **一句话：** P0-01 已从「默认 `run` 把 401 记成成功」修到「所有引擎 exit 1 / Web failed」，但 429/timeout/malformed 矩阵、真实 E2E、产品层闭环仍未完成。
