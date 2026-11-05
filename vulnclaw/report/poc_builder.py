@@ -130,7 +130,7 @@ def generate_pocs(session: SessionState, output_dir: Path) -> list[Path]:
         output_path = _next_available_poc_path(output_dir, filename)
         output_path.write_text(content, encoding="utf-8")
         generated.append(output_path)
-        finding.poc_script = str(output_path)
+        finding.poc_script = str(Path("pocs") / output_path.name)
 
     return generated
 

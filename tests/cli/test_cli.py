@@ -198,11 +198,18 @@ class TestCLI:
         assert "LLM Probe" in result.output
 
     def test_recon_resumes_target_state(self, runner, monkeypatch, tmp_path):
+        import vulnclaw.agent.core as agent_core
+        import vulnclaw.cli.main as cli_main
         import vulnclaw.orchestrator as orchestrator_mod
         import vulnclaw.target_state.store as store_mod
         from vulnclaw.agent.context import PentestPhase, SessionState
         from vulnclaw.cli.main import app
 
+        async def fake_call_llm(*_args, **_kwargs):
+            return "recon complete"
+
+        monkeypatch.setattr(agent_core, "call_llm", fake_call_llm)
+        monkeypatch.setattr(cli_main, "has_llm_credentials", lambda _llm: True)
         monkeypatch.setattr(store_mod, "TARGETS_DIR", tmp_path / "targets")
         state = SessionState(target="https://example.com")
         state.advance_phase(PentestPhase.RECON)
@@ -223,10 +230,17 @@ class TestCLI:
         assert calls == [("https://example.com", None)]
 
     def test_recon_no_resume_skips_target_state(self, runner, monkeypatch, tmp_path):
+        import vulnclaw.agent.core as agent_core
+        import vulnclaw.cli.main as cli_main
         import vulnclaw.target_state.store as store_mod
         from vulnclaw.agent.context import PentestPhase, SessionState
         from vulnclaw.cli.main import app
 
+        async def fake_call_llm(*_args, **_kwargs):
+            return "recon complete"
+
+        monkeypatch.setattr(agent_core, "call_llm", fake_call_llm)
+        monkeypatch.setattr(cli_main, "has_llm_credentials", lambda _llm: True)
         monkeypatch.setattr(store_mod, "TARGETS_DIR", tmp_path / "targets")
         state = SessionState(target="https://example.com")
         state.advance_phase(PentestPhase.RECON)
@@ -411,7 +425,9 @@ class TestCLI:
         result = runner.invoke(app, ["run", "https://example.com"])
 
         assert result.exit_code == 0
-        assert report_calls == [("https://example.com", {"output_path": None})]
+        assert report_calls == [
+            ("https://example.com", {"output_path": None, "template": "pentest"})
+        ]
         assert "report.md" in result.output
 
     def test_run_passes_output_flag_to_report_generation(self, runner, monkeypatch):
@@ -442,7 +458,10 @@ class TestCLI:
 
         assert result.exit_code == 0
         assert report_calls == [
-            ("https://example.com", {"output_path": "/custom/path/report.md"})
+            (
+                "https://example.com",
+                {"output_path": "/custom/path/report.md", "template": "pentest"},
+            )
         ]
         assert "/custom/path/report.md" in result.output
 
@@ -605,6 +624,11 @@ class TestCLI:
             lambda prompt, only_port, only_host, only_path, blocked_host=None, blocked_path=None: f"{prompt} 仅做信息收集。",
         )
 
+        async def fake_orchestrated(**_kwargs):
+            return type("Result", (), {"status": "completed", "summary": {"findings_count": 0, "executed_steps": 0}})()
+
+        monkeypatch.setattr(cli_main, "_run_cli_orchestrated_task", fake_orchestrated)
+
         result = runner.invoke(app, ["run", "https://example.com"])
         assert result.exit_code == 0
 
@@ -617,6 +641,11 @@ class TestCLI:
         config.llm.api_key = "test-key"
         monkeypatch = pytest.MonkeyPatch()
         monkeypatch.setattr(cli_main, "load_config", lambda: config)
+
+        async def fake_orchestrated(**_kwargs):
+            return type("Result", (), {"status": "completed", "summary": {"findings_count": 0, "executed_steps": 0}})()
+
+        monkeypatch.setattr(cli_main, "_run_cli_orchestrated_task", fake_orchestrated)
 
         result = runner.invoke(app, ["run", "https://example.com", "--allow-actions", "recon"])
         monkeypatch.undo()

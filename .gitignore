@@ -65,6 +65,8 @@ frontend/dist/
 frontend/.vite/
 frontend/.npm-cache/
 frontend/*.tsbuildinfo
+# Web UI 构建产物随包分发（wheel/sdist 都要），不受上面的 dist/ 规则影响
+!vulnclaw/web/dist/
 frontend/vite.config.js
 frontend/vite.config.cjs
 frontend/vite.config.d.ts
@@ -81,8 +83,7 @@ CLAUDE.md
 AGENTS.md
 
 
-# Local docs / local-only artifacts
-docs/
+# Local-only artifacts
 .test-tmp/
 版本号文件.png
 
@@ -96,3 +97,14 @@ tui/target/
 *.db
 .beads-credential-key
 .beads/proxieddb/
+
+
+# Local code-intelligence caches (not part of the package)
+.codegraph/
+.cocoindex_code/
+graft/
+.mcp.json
+.ignore
+frontend/test-results/
+frontend/playwright-report/
+frontend/e2e-artifacts/

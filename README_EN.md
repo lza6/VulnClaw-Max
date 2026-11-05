@@ -75,7 +75,7 @@ Suitable for authorized pentests, CTF competitions, security training, and red t
 - **Native Traffic Evidence Store** — In-scope request/response pairs land in an append-only JSONL index under `evidence/traffic/`. Built-in `traffic_list` / `traffic_view` / `traffic_repeat` / `traffic_sitemap` tools read and replay the store
 - **AI Agent Core** — OpenAI-compatible protocol + Tool Calling + autonomous pentest loop
 - **Structured Reasoning + Adaptive Reflection** — Facts/constraints/attack chains structured and injected into prompts; failures auto-classified with L0-L4 payload escalation
-- **Vulnerability Detection Plugin System** — Low-coupling plugin runtime + built-in read-only Web plugins, results auto-merged into reports (`vulnclaw plugins`)
+- **Vulnerability Detection Plugin System** — Low-coupling plugin runtime + built-in read-only Web plugins, results auto-merged into reports (`vulnclaw plugins`); third-party plugins register through the `vulnclaw.plugins` entry point with declared permissions and a minimum core version — see `examples/plugins/vulnclaw-plugin-demo`
 - **50 Specialized Skills** — CTF, Web, intranet, reversing, vulnerability validation, and authorized red-team knowledge; skills are exposed as optional reference indexes only, and full reference bodies are loaded only when the model explicitly calls `load_skill_reference`
 - **Encode/Decode & Crypto Tools** — 29 operations (Base64/Hex/URL/AES/JWT/Morse etc.), LLM calls them directly, no guessing
 - **Automatic Source Rendering** — `fetch` / `http_probe_batch` automatically prepend clean source before raw bodies when they see `highlight_file`, highlighted HTML source, or noisy HTML/JS bodies; `http_probe_batch` disables TLS verification by default and records full response headers so runtime clues such as `X-Powered-By` are not lost; built-in `source_extract` remains available for revisiting saved evidence and pinning dangerous sinks, forms, inputs, and endpoints
@@ -87,7 +87,8 @@ Suitable for authorized pentests, CTF competitions, security training, and red t
 - **Persistent Pentesting** — Cyclic runs (100 rounds/cycle × 10 cycles = 1000 rounds), auto-reports every cycle
 - **Thinking Process Control** — `think on/off` toggles LLM reasoning visibility
 - **Sandbox Mode Prompting** — Unlocks AI security testing capabilities, for CTF and authorized pentest scenarios
-- **Auto Report & PoC** — Generates structured Markdown reports and runnable Python PoC scripts
+- **Auto Report & PoC** — Generates structured Markdown reports and runnable Python PoC scripts; reports support the `pentest` / `executive` / `ctf` templates (`vulnclaw report --template` or the Web report center), and the executive summary keeps only risk posture and remediation priorities
+- **Integrations & Notifications** — Export findings to Webhook / Jira / DefectDojo; every finished run (completed or failed) posts one event to each subscribed webhook, configurable and testable from the settings page
 - **Web UI Mode** — `vulnclaw web` launches a local web interface, default `127.0.0.1:7788`
 - **Security Knowledge Base** — Includes KB module and baseline seed data; retrieval augmentation being integrated
 - **CONTRIBUTING_EN.md** — English contributing guide for international contributors
@@ -223,6 +224,7 @@ $ vulnclaw --help
 | `vulnclaw scan <target>` | Vulnerability scanning | `vulnclaw scan target.com --ports 80,443` |
 | `vulnclaw exploit <target>` | Exploitation phase | `vulnclaw exploit target.com --cve CVE-2024-1234` |
 | `vulnclaw report <session>` | Generate report from session JSON | `vulnclaw report session_xxx.json` |
+| `vulnclaw report <target> --target --template <kind>` | Generate a report for a target from the chosen template (`pentest`/`executive`/`ctf`) | `vulnclaw report example.com --target --template executive` |
 | `vulnclaw config set <key> <value>` | Set a config value | `vulnclaw config set llm.api_key sk-xxx` |
 | `vulnclaw config provider <name>` | Switch LLM provider | `vulnclaw config provider minimax` |
 | `vulnclaw plugins list` | List vulnerability detection plugins | `vulnclaw plugins list --stage discovery` |
@@ -341,30 +343,36 @@ vulnclaw tui --target 192.168.1.100 --mode continuous
 
 ### Mode 5: Web UI
 
-Operate the full pentest workflow through a browser.
+Operate the full pentest workflow through a browser. The published wheel ships
+with the built frontend, so installing is all it takes:
 
 ```bash
-git clone https://github.com/Netw0rkNoob/VulnClaw.git
-cd VulnClaw
-pip install -e '.[web]'       # install from a source checkout
-
-# First run: build the React frontend (Node.js 18+)
-cd frontend
-npm install
-npm run build
-cd ..
-
+pip install 'vulnclaw[web]'
 vulnclaw web                  # launch (default 127.0.0.1:7788)
 vulnclaw web --port 8080      # custom port
 ```
 
-The published wheel does not contain the React build or its source files. Use
-the source-checkout installation above for the full Web UI. If you see the
-**Fallback Web Shell** (no full scan UI),
-`frontend/dist/index.html` is missing. Build as above, restart `vulnclaw web`,
-and hard-refresh. API endpoints such as `/api/health` still work while the SPA is unbuilt.
+The UI language follows your browser preference and can be switched under
+Settings → UI language.
+
+A source checkout needs one frontend build (Node.js 18+):
+
+```bash
+git clone https://github.com/Netw0rkNoob/VulnClaw.git
+cd VulnClaw
+pip install -e '.[web]'
+cd frontend && npm install && npm run build && cd ..
+vulnclaw web
+```
+
+If you see the **Fallback Web Shell** (no full scan UI), the current install has
+no frontend build; `vulnclaw web` reports this as `UI: fallback shell` in its
+startup banner. Build as above from a source tree to get the full SPA. API
+endpoints such as `/api/health` still work while the SPA is unbuilt.
 
 > ⚠️ By default binds to localhost only. For remote access pass `--host 0.0.0.0 --allow-remote`.
+>
+> The Web UI runs one task at a time by default and queues the rest; set `VULNCLAW_WEB_MAX_CONCURRENT_TASKS=1..4` to change it.
 
 ---
 

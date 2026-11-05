@@ -33,6 +33,8 @@ class VulnPlugin(ABC):
     timeout_seconds: ClassVar[float | None] = None
     tags: ClassVar[tuple[str, ...]] = ()
     request_cost: ClassVar[int] = 1
+    permissions: ClassVar[tuple[str, ...]] = ()
+    min_core_version: ClassVar[str] = ""
 
     @classmethod
     def metadata(cls) -> dict[str, Any]:
@@ -47,6 +49,8 @@ class VulnPlugin(ABC):
             "destructive": cls.destructive,
             "requires_target": cls.requires_target,
             "tags": list(cls.tags),
+            "permissions": list(cls.permissions),
+            "min_core_version": cls.min_core_version,
         }
 
     @abstractmethod

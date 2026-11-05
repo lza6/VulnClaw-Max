@@ -21,6 +21,8 @@ def get_public_config() -> ConfigView:
         api_key_configured=bool(config.llm.api_key),
         language=language,
         output_dir=str(config.session.output_dir),
+        report_format=config.session.report_format,
+        report_template=config.session.report_template,
         max_rounds=config.session.max_rounds,
         max_context_tokens=config.llm.max_context_tokens,
         context_auto_compact=config.session.context_auto_compact,
@@ -55,6 +57,8 @@ def update_public_config(payload: ConfigUpdateRequest) -> ConfigView:
         config.session.language = payload.language
     if payload.output_dir is not None:
         config.session.output_dir = Path(payload.output_dir)
+    if payload.report_template is not None:
+        config.session.report_template = payload.report_template
     if payload.max_rounds is not None:
         config.session.max_rounds = payload.max_rounds
     if payload.max_context_tokens is not None:

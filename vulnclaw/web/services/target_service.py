@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 from pathlib import Path
 
 from vulnclaw.agent.context import SessionState
@@ -22,16 +23,49 @@ from vulnclaw.web.schemas import (
     TargetView,
 )
 
+logger = logging.getLogger(__name__)
+
 
 def list_targets(limit: int = 20) -> list[TargetView]:
-    """List recent targets from persisted target state."""
+    """List recent targets, preferring the O(1) global index."""
+    if limit < 1:
+        raise ValueError("limit must be positive")
     ensure_dirs()
-    items: list[tuple[float, TargetView]] = []
+    index_path = TARGETS_DIR / "index.json"
+    if index_path.exists():
+        try:
+            indexed = json.loads(index_path.read_text(encoding="utf-8"))
+            if isinstance(indexed, list):
+                ordered = sorted(
+                    (item for item in indexed if isinstance(item, dict)),
+                    key=lambda item: str(item.get("updated_at", "")),
+                    reverse=True,
+                )
+                views: list[TargetView] = []
+                for item in ordered[:limit]:
+                    try:
+                        views.append(TargetView(**item))
+                    except (TypeError, ValueError, KeyError):
+                        continue
+                return views
+        except (OSError, json.JSONDecodeError):
+            logger.warning("Target index is unreadable; falling back to a directory scan")
+    entries: list[tuple[float, Path]] = []
     for state_path in TARGETS_DIR.glob("*/state.json"):
-        raw = json.loads(state_path.read_text(encoding="utf-8"))
-        items.append((_mtime(state_path), _build_target_view(raw)))
-    items.sort(key=lambda item: item[0], reverse=True)
-    return [view for _, view in items[:limit]]
+        try:
+            entries.append((state_path.stat().st_mtime, state_path))
+        except OSError:
+            continue
+    entries.sort(key=lambda item: item[0], reverse=True)
+
+    views: list[TargetView] = []
+    for _mtime_value, state_path in entries[:limit]:
+        try:
+            raw = json.loads(state_path.read_text(encoding="utf-8"))
+            views.append(_build_target_view(raw))
+        except (OSError, json.JSONDecodeError, ValueError, TypeError, KeyError) as exc:
+            logger.warning("Skipping unreadable target state %s: %s", state_path, exc)
+    return views
 
 
 def get_target(target: str) -> TargetView | None:
@@ -120,10 +154,3 @@ def _build_target_view(raw: dict) -> TargetView:
         ],
         raw=raw,
     )
-
-
-def _mtime(path: Path) -> float:
-    try:
-        return path.stat().st_mtime
-    except OSError:
-        return 0.0

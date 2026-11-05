@@ -1,12 +1,15 @@
 from __future__ import annotations
 
+import zipfile
+
 
 def test_verify_dist_artifacts_accepts_matching_version(tmp_path) -> None:
     from scripts.verify_dist_artifacts import verify_dist_artifacts
 
     wheel = tmp_path / "vulnclaw-0.4.0-py3-none-any.whl"
     sdist = tmp_path / "vulnclaw-0.4.0.tar.gz"
-    wheel.write_bytes(b"wheel")
+    with zipfile.ZipFile(wheel, "w") as archive:
+        archive.writestr("vulnclaw/web/dist/index.html", "<html></html>")
     sdist.write_bytes(b"sdist")
 
     artifacts = verify_dist_artifacts(tmp_path, version="0.4.0")

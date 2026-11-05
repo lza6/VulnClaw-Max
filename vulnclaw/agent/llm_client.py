@@ -34,11 +34,25 @@ from vulnclaw.agent.subagent.budget import (
 if TYPE_CHECKING:
     from vulnclaw.agent.agent_context import AgentContext
 
+from vulnclaw.agent.errors import LLMInvocationError, is_auth_failure
+
 logger = logging.getLogger(__name__)
+
+
+def _llm_provider(agent: Any) -> str:
+    """Return the configured provider name without assuming an AgentCore shape."""
+    config = getattr(agent, "config", None)
+    llm = getattr(config, "llm", None)
+    return str(getattr(llm, "provider", "") or "")
+
+
+def _is_auth_llm_error(error_text: str) -> bool:
+    return is_auth_failure(error_text)
 
 from vulnclaw.agent.context_budget import prepare_context  # noqa: E402
 from vulnclaw.agent.token_counter import (  # noqa: E402
     estimate_tokens,
+    estimate_tool_tokens,
     group_tool_exchanges,
     truncate_messages,
 )
@@ -288,7 +302,17 @@ async def _stream_chat_completion_message(
 
     kwargs = build_chat_completion_kwargs(agent, messages, tools)
     stream_sink.on_status("Thinking...")
-    response = await _create_streaming_response(agent, kwargs)
+    try:
+        response = await _create_streaming_response(agent, kwargs)
+    except Exception as exc:
+        if _is_non_retriable_llm_error(str(exc).lower()):
+            raise LLMInvocationError(
+                str(exc),
+                stage="stream",
+                provider=_llm_provider(agent),
+                cause=exc,
+            ) from exc
+        raise
 
     full_text = ""
     reasoning_buffer = ""
@@ -480,7 +504,13 @@ async def _call_with_persistent_retries_unbudgeted(
                 # Every key has now failed in this burst.
                 if is_auth and not is_exhausted:
                     # All keys are invalid/unauthorized -> nothing to recover.
-                    raise
+                    raise LLMInvocationError(
+                        str(exc),
+                        stage=stage_label,
+                        provider=_llm_provider(agent),
+                        cause=exc,
+                        fatal=True,
+                    ) from exc
                 # All keys rate-limited: keep cycling, but back off first so we
                 # never hard-fail on transient quota limits.
                 keys_tried.clear()
@@ -494,7 +524,13 @@ async def _call_with_persistent_retries_unbudgeted(
                 continue
 
             if is_auth and not is_exhausted:
-                raise
+                raise LLMInvocationError(
+                    str(exc),
+                    stage=stage_label,
+                    provider=_llm_provider(agent),
+                    cause=exc,
+                    fatal=_is_auth_llm_error(error_text),
+                ) from exc
 
             retry_attempts += 1
             logger.warning(
@@ -503,7 +539,47 @@ async def _call_with_persistent_retries_unbudgeted(
             )
             await asyncio.sleep(5)
 
-    raise RuntimeError(_("agent.llm.max_retries", stage=stage_label, retries=max_retries))
+    message = _("agent.llm.max_retries", stage=stage_label, retries=max_retries)
+    raise LLMInvocationError(
+        message,
+        stage=stage_label,
+        provider=_llm_provider(agent),
+    )
+
+
+def _record_response_usage(agent: Any, response: Any) -> None:
+    """Accumulate provider-reported usage on the agent runtime."""
+    runtime = getattr(agent, "runtime", None)
+    if runtime is None:
+        return
+    usage = getattr(response, "usage", None)
+    runtime.llm_calls = int(getattr(runtime, "llm_calls", 0)) + 1
+    if usage is None:
+        return
+    prompt = int(getattr(usage, "prompt_tokens", 0) or 0)
+    completion = int(getattr(usage, "completion_tokens", 0) or 0)
+    total = int(getattr(usage, "total_tokens", 0) or 0) or prompt + completion
+    runtime.prompt_tokens = int(getattr(runtime, "prompt_tokens", 0)) + prompt
+    runtime.completion_tokens = int(getattr(runtime, "completion_tokens", 0)) + completion
+    runtime.total_tokens = int(getattr(runtime, "total_tokens", 0)) + total
+
+
+def _record_estimated_usage(
+    agent: Any,
+    messages: list[dict[str, Any]],
+    tools: list[dict[str, Any]] | None,
+    response_text: str,
+) -> None:
+    """Estimate usage for streamed calls that do not return a usage object."""
+    runtime = getattr(agent, "runtime", None)
+    if runtime is None:
+        return
+    prompt = estimate_tokens(messages) + estimate_tool_tokens(tools)
+    completion = estimate_tokens([{"role": "assistant", "content": response_text or ""}])
+    runtime.llm_calls = int(getattr(runtime, "llm_calls", 0)) + 1
+    runtime.prompt_tokens = int(getattr(runtime, "prompt_tokens", 0)) + prompt
+    runtime.completion_tokens = int(getattr(runtime, "completion_tokens", 0)) + completion
+    runtime.total_tokens = int(getattr(runtime, "total_tokens", 0)) + prompt + completion
 
 
 async def _call_with_persistent_retries(
@@ -514,6 +590,7 @@ async def _call_with_persistent_retries(
         response, retries = await _call_with_persistent_retries_unbudgeted(
             agent, request_fn, stage_label, max_retries
         )
+        _record_response_usage(agent, response)
         actual_tokens = _record_subagent_llm_usage(agent, response)
         _settle_subagent_llm_admission(agent, admission, actual_tokens)
         admission = None
@@ -648,6 +725,8 @@ async def call_llm_auto(
                 "autonomous loop",
             )
         except Exception as exc:
+            if isinstance(exc, LLMInvocationError) and exc.fatal:
+                raise
             if last_tool_results is not None:
                 fallback = _format_tool_results_fallback(
                     last_tool_results,
@@ -953,6 +1032,13 @@ async def call_llm_stream(
         if any(marker in error_text for marker in streaming_markers):
             # Provider doesn't support streaming or other streaming error, fall back
             pass
+        elif _is_non_retriable_llm_error(error_text):
+            raise LLMInvocationError(
+                str(e),
+                stage="stream",
+                provider=_llm_provider(agent),
+                cause=e,
+            ) from e
         else:
             # Other error, re-raise
             raise
@@ -1052,6 +1138,8 @@ async def call_llm_auto_stream(
 
         return "[tool loop paused] Internal tool follow-up cap reached; continue from the recorded tool evidence."
     except (NotImplementedError, ValueError, Exception) as e:
+        if isinstance(e, LLMInvocationError) and e.fatal:
+            raise
         error_text = str(e).lower()
         if last_tool_results is not None:
             return _format_tool_results_fallback(

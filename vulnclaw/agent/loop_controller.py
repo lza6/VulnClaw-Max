@@ -14,6 +14,7 @@ if TYPE_CHECKING:
 from vulnclaw.agent.constraint_policy import validate_phase_transition
 from vulnclaw.agent.context import PentestPhase, TaskConstraints
 from vulnclaw.agent.ctf_mode import update_ctf_state
+from vulnclaw.agent.errors import LLMInvocationError
 from vulnclaw.agent.llm_client import call_llm_auto
 from vulnclaw.agent.reasoning_state import (
     ConstraintCategory,
@@ -271,6 +272,8 @@ async def auto_pentest(
             agent.context.state.save()
 
         except Exception as e:
+            if isinstance(e, LLMInvocationError) and e.fatal:
+                raise
             result.output = _("agent.loop.round_error", round=round_num, error=e)
             agent.runtime.consecutive_errors += 1
             await asyncio.sleep(min(2 ** (agent.runtime.consecutive_errors - 1), 8))

@@ -71,7 +71,7 @@ VulnClaw 自动执行：
 - **原生流量证据存储** — 按运行内作用域过滤后以追加式 JSONL 索引 + 每请求原始报文落盘于 `evidence/traffic/`，内置 `traffic_list` / `traffic_view` / `traffic_repeat` / `traffic_sitemap` 工具直接读写
 - **AI Agent 核心** — OpenAI 兼容协议 + Tool Calling + 自主渗透循环
 - **结构化推理 + 自适应反思** — 已知事实/约束/攻击链结构化沉淀；失败自动归类并按 L0-L4 渐进升级 payload 绕过策略
-- **漏洞检测插件体系** — 低耦合插件运行时 + 内置只读 Web 插件，结果自动汇入报告链路（`vulnclaw plugins`）
+- **漏洞检测插件体系** — 低耦合插件运行时 + 内置只读 Web 插件，结果自动汇入报告链路（`vulnclaw plugins`）；第三方插件走 `vulnclaw.plugins` entry point，声明权限与最低核心版本，样例包见 `examples/plugins/vulnclaw-plugin-demo`
 - **50 个专项 Skill** — 覆盖 CTF、Web、内网、逆向、漏洞验证与授权红队知识库；Skill 只作为参考资料索引暴露给模型，正文需要模型主动调用 `load_skill_reference` 按需读取，不再作为强制剧本注入上下文
 - **编解码/加解密工具** — 29 种操作（Base64/Hex/URL/AES/JWT/Morse 等），LLM 可精确调用，不再靠猜测
 - **源码自动还原** — `fetch` / `http_probe_batch` 遇到 `highlight_file`、HTML 高亮源码或混杂 HTML/JS body 时会自动在 raw body 前追加 clean source；`http_probe_batch` 默认关闭 TLS 校验并记录完整响应头，避免丢失 `X-Powered-By` 等运行时证据；内置 `source_extract` 仍可用于按需重读历史 evidence，并固定危险 sink、表单与 endpoint 信号
@@ -83,8 +83,9 @@ VulnClaw 自动执行：
 - **持续性渗透测试** — 周期循环（默认 100 轮/周期 × 10 周期 = 1000 轮），每周期自动生成报告
 - **推理过程显示控制** — `think on/off` 一键切换 LLM 思考过程的显示/隐藏
 - **沙盒模式提示词** — 解锁 AI 安全测试能力，CTF / 授权渗透场景专用
-- **自动报告 & PoC** — 生成结构化 Markdown 报告和可运行的 Python PoC 脚本
-- **Web UI 模式** — `vulnclaw web` 启动本地 Web 界面，默认 `127.0.0.1:7788`
+- **自动报告 & PoC** — 生成结构化 Markdown 报告和可运行的 Python PoC 脚本；报告支持 `pentest` / `executive` / `ctf` 三种模板（`vulnclaw report --template` 或 Web 报告中心选择），执行摘要只保留风险态势与修复优先级
+- **集成与通知** — Webhook / Jira / DefectDojo 导出发现问题；任务结束（完成或失败）按订阅向 Webhook 推送一次事件，设置页可视化配置并可一键测试
+- **Web UI 模式** — `vulnclaw web` 启动本地 Web 界面，默认 `127.0.0.1:7788`；发行包内置前端产物，装完即用，界面语言跟随浏览器
 - **安全知识库** — 已内置知识库模块与基础种子数据，检索增强正在逐步接入主流程
 
 ---
@@ -218,6 +219,7 @@ $ vulnclaw --help
 | `vulnclaw scan <target>` | 漏洞扫描阶段 | `vulnclaw scan target.com --ports 80,443` |
 | `vulnclaw exploit <target>` | 漏洞利用阶段 | `vulnclaw exploit target.com --cve CVE-2024-1234` |
 | `vulnclaw report <session>` | 从会话 JSON 生成报告 | `vulnclaw report session_xxx.json` |
+| `vulnclaw report <target> --target --template <kind>` | 按模板从目标状态生成报告（`pentest`/`executive`/`ctf`） | `vulnclaw report example.com --target --template executive` |
 | `vulnclaw config set <key> <value>` | 设置配置项 | `vulnclaw config set llm.api_key sk-xxx` |
 | `vulnclaw config provider <name>` | 切换 LLM 提供商 | `vulnclaw config provider minimax` |
 | `vulnclaw plugins list` | 列出漏洞检测插件 | `vulnclaw plugins list --stage discovery` |
@@ -336,29 +338,33 @@ vulnclaw tui --target 192.168.1.100 --mode continuous
 
 ### 方式五：Web UI
 
-通过浏览器操作渗透测试全流程。
+通过浏览器操作渗透测试全流程。发行包已内置前端构建产物，装完即可用：
 
 ```bash
-git clone https://github.com/Netw0rkNoob/VulnClaw.git
-cd VulnClaw
-pip install -e '.[web]'       # 从源码检出安装 Web 依赖
-
-# 首次使用：构建 React 前端（需要 Node.js 18+）
-cd frontend
-npm install
-npm run build
-cd ..
-
+pip install 'vulnclaw[web]'
 vulnclaw web                  # 启动（默认 127.0.0.1:7788）
 vulnclaw web --port 8080      # 自定义端口
 ```
 
-PyPI wheel 不包含 React 构建产物或前端源码；完整 Web UI 需要按上面的源码方式安装。
-若浏览器显示 **Fallback Web Shell**（无完整扫描界面），说明缺少
-`frontend/dist/index.html`。按上式构建后重启 `vulnclaw web` 并强制刷新。
-未构建前端时，`/api/health` 等 API 仍可用。
+界面语言跟随浏览器偏好，中文浏览器默认中文，可在「设置 → 界面语言」切换。
+
+从源码检出安装时，需要自己构建一次前端（Node.js 18+）：
+
+```bash
+git clone https://github.com/Netw0rkNoob/VulnClaw.git
+cd VulnClaw
+pip install -e '.[web]'
+cd frontend && npm install && npm run build && cd ..
+vulnclaw web
+```
+
+若浏览器显示 **Fallback Web Shell**（无完整扫描界面），说明当前安装缺少
+前端构建产物，`vulnclaw web` 启动时会直接在产品信息里标出 `UI: fallback shell`。
+源码树按上式构建后重启即可；未构建前端时，`/api/health` 等 API 仍可用。
 
 > ⚠️ 默认仅绑定本地回环地址。如需远程访问须显式指定 `--host 0.0.0.0 --allow-remote`。
+>
+> Web 端默认同一时间只跑 1 个任务，其余排队；可用 `VULNCLAW_WEB_MAX_CONCURRENT_TASKS=1..4` 调整。
 
 ---
 

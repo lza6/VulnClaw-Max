@@ -14,6 +14,7 @@ import json
 import time
 from typing import Any
 
+from vulnclaw import __version__
 from vulnclaw.codescan.rules import CodeFinding
 from vulnclaw.codescan.scanner import ScanResult
 
@@ -215,7 +216,7 @@ def format_sarif(result: ScanResult) -> str:
                         "driver": {
                             "name": "VulnClaw",
                             "informationUri": "https://github.com/Netw0rkNoob/VulnClaw",
-                            "version": "0.4.1",
+                            "version": __version__,
                             "rules": rules,
                         }
                     },

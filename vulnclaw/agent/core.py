@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from typing import Any, Callable, Optional
 
 from vulnclaw.agent.anti_loop import (
@@ -59,13 +60,22 @@ except Exception:
     KnowledgeRetriever = None
     RetrieverStatus = None
 
+logger = logging.getLogger(__name__)
+
 
 class AgentCore:
     """Core AI agent that orchestrates LLM calls and tool execution."""
 
-    def __init__(self, config: VulnClawConfig, mcp_manager: Any = None) -> None:
+    def __init__(
+        self,
+        config: VulnClawConfig,
+        mcp_manager: Any = None,
+        *,
+        console_output: bool = True,
+    ) -> None:
         self.config = config
         self.mcp_manager = mcp_manager
+        self._console_output = console_output
         memory_dir = config.session.output_dir / "memory"
         self.context = ContextManager(
             max_history=config.session.context_hot_max_messages,
@@ -97,10 +107,20 @@ class AgentCore:
     def _child_factory(self) -> "AgentCore":
         """Build an isolated child; subclasses may override this explicit seam."""
 
-        return AgentCore(self.config, self.mcp_manager)
+        return AgentCore(
+            self.config,
+            self.mcp_manager,
+            console_output=False,
+        )
 
     def _report_kb_status(self) -> None:
-        """Print the knowledge-base backend status once at startup."""
+        """Report the knowledge-base backend once per process, safely.
+
+        Background Web tasks have no terminal: printing through rich can raise
+        ``UnicodeEncodeError`` on a GBK Windows console and, when that happens
+        during ``AgentCore`` construction, the task never reaches its failure
+        handler. Console output is therefore optional and best-effort.
+        """
         if KnowledgeRetriever is None:
             return
         try:
@@ -116,6 +136,9 @@ class AgentCore:
         except Exception:
             return
 
+        if not getattr(self, "_console_output", True):
+            return
+
         try:
             from rich.console import Console
 
@@ -126,11 +149,15 @@ class AgentCore:
         if RetrieverStatus is None:
             return
         if status == RetrieverStatus.CHROMADB_ACTIVE:
-            console.print(f"[green]{_('agent.kb_enabled')}[/green]")
+            message = f"[green]{_('agent.kb_enabled')}[/green]"
         elif status == RetrieverStatus.KEYWORD_FALLBACK:
-            console.print(f"[yellow]{_('agent.kb_fallback')}[/yellow]")
+            message = f"[yellow]{_('agent.kb_fallback')}[/yellow]"
         else:
-            console.print(f"[red]{_('agent.kb_disabled')}[/red]")
+            message = f"[red]{_('agent.kb_disabled')}[/red]"
+        try:
+            console.print(message)
+        except Exception:
+            logger.warning("%s", _("agent.kb_fallback"))
 
     def _maybe_auto_save_session(self) -> None:
         """Persist session state when auto-save is enabled."""
@@ -477,6 +504,7 @@ class AgentCore:
         *,
         stream_sink: Optional["StreamSink"] = None,
         task_constraints: Optional[TaskConstraints] = None,
+        raise_on_error: bool = False,
     ) -> AgentResult:
         """Process a user message and return agent response (single turn).
 
@@ -526,6 +554,8 @@ class AgentCore:
             self._maybe_auto_save_session()
 
         except Exception as e:
+            if raise_on_error:
+                raise
             result.output = f"[!] Agent 错误: {e}"
 
         return result

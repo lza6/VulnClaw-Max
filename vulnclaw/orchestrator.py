@@ -393,4 +393,11 @@ def _build_summary(
         status=status,
         exit_code=exit_code,
     )
-    return {**base, **completion}
+    runtime = getattr(agent, "runtime", None)
+    summary = {**base, **completion}
+    if runtime is not None:
+        summary["tokens_input"] = int(getattr(runtime, "prompt_tokens", 0))
+        summary["tokens_output"] = int(getattr(runtime, "completion_tokens", 0))
+        summary["tokens_total"] = int(getattr(runtime, "total_tokens", 0))
+        summary["llm_calls"] = int(getattr(runtime, "llm_calls", 0))
+    return summary

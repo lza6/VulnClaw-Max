@@ -11,7 +11,6 @@ from vulnclaw.config.cli_constants import (
     TASK_COMMAND_NAMES,
     ManualTopic,
 )
-from vulnclaw.config.schema import PROVIDER_PRESETS
 
 
 def render_manual(output_format: str = "text", topic: str | None = None) -> str:
@@ -58,6 +57,8 @@ def _normalize_topic(topic: str | None) -> str:
 
 
 def _provider_names() -> str:
+    from vulnclaw.config.schema import PROVIDER_PRESETS
+
     return ", ".join(provider.value for provider in PROVIDER_PRESETS)
 
 

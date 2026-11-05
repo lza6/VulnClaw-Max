@@ -11,7 +11,16 @@ from pydantic import BaseModel, Field, field_validator
 
 from vulnclaw.task_service import TaskCommand, TaskCreateRequest, TaskOptions  # noqa: F401
 
-TaskStatus = Literal["pending", "restoring", "running", "completed", "failed", "stopped"]
+TaskStatus = Literal[
+    "pending",
+    "queued",
+    "restoring",
+    "running",
+    "completed",
+    "failed",
+    "stopped",
+    "interrupted",
+]
 PythonExecuteMode = Literal["safe", "lab", "trusted-local"]
 ContextCompactionMode = Literal["structured"]
 # Report / UI language: auto follows env detection, zh/en force a language.
@@ -55,6 +64,7 @@ class TaskEvent(BaseModel):
     task_id: str
     timestamp: str = Field(default_factory=lambda: datetime.now().isoformat())
     payload: dict[str, Any] = Field(default_factory=dict)
+    seq: int = 0
 
 
 class TaskSummary(BaseModel):
@@ -82,16 +92,22 @@ class TaskSummary(BaseModel):
     constraints: dict[str, Any] = Field(default_factory=dict)
     constraint_violations: list[str] = Field(default_factory=list)
     constraint_violation_events: list[dict[str, Any]] = Field(default_factory=list)
+    tokens_input: int = 0
+    tokens_output: int = 0
+    tokens_total: int = 0
+    llm_calls: int = 0
 
 
 class TaskRecord(BaseModel):
     task_id: str
     command: TaskCommand
     target: str
+    project_id: Optional[str] = None
     status: TaskStatus
     created_at: str = Field(default_factory=lambda: datetime.now().isoformat())
     started_at: Optional[str] = None
     completed_at: Optional[str] = None
+    interrupted_at: Optional[str] = None
     error: Optional[str] = None
     resume: bool = True
     snapshot_id: Optional[str] = None
@@ -99,6 +115,7 @@ class TaskRecord(BaseModel):
     latest_phase: Optional[str] = None
     latest_message: Optional[str] = None
     summary: Optional[TaskSummary] = None
+    event_seq: int = 0
 
 
 class TargetSnapshotView(BaseModel):
@@ -127,6 +144,10 @@ class TargetView(BaseModel):
     constraints: dict[str, Any] = Field(default_factory=dict)
     constraint_violations: list[str] = Field(default_factory=list)
     constraint_violation_events: list[dict[str, Any]] = Field(default_factory=list)
+    tokens_input: int = 0
+    tokens_output: int = 0
+    tokens_total: int = 0
+    llm_calls: int = 0
     raw: dict[str, Any] = Field(default_factory=dict)
 
 
@@ -154,6 +175,10 @@ class TargetPreviewView(BaseModel):
     constraints: dict[str, Any] = Field(default_factory=dict)
     constraint_violations: list[str] = Field(default_factory=list)
     constraint_violation_events: list[dict[str, Any]] = Field(default_factory=list)
+    tokens_input: int = 0
+    tokens_output: int = 0
+    tokens_total: int = 0
+    llm_calls: int = 0
 
 
 class TargetStateDiffView(BaseModel):
@@ -178,7 +203,8 @@ class TargetStateDiffView(BaseModel):
 class ReportGenerateRequest(BaseModel):
     target: str = Field(min_length=1, max_length=2048)
     output_path: Optional[str] = Field(default=None, max_length=1024)
-    report_format: Literal["markdown", "html"] = "markdown"
+    report_format: Literal["markdown", "html", "pdf"] = "markdown"
+    template: Literal["pentest", "executive", "ctf"] = "pentest"
 
 
 class ConfigView(BaseModel):
@@ -188,6 +214,8 @@ class ConfigView(BaseModel):
     api_key_configured: bool
     language: ReportLanguage
     output_dir: str
+    report_format: str = "markdown"
+    report_template: Literal["pentest", "executive", "ctf"] = "pentest"
     max_rounds: int
     max_context_tokens: int
     context_auto_compact: bool
@@ -213,6 +241,7 @@ class ConfigUpdateRequest(BaseModel):
     base_url: Optional[str] = Field(default=None, max_length=512)
     language: Optional[ReportLanguage] = None
     output_dir: Optional[str] = Field(default=None, min_length=1, max_length=1024)
+    report_template: Optional[Literal["pentest", "executive", "ctf"]] = None
     max_rounds: Optional[int] = Field(default=None, ge=1, le=100)
     max_context_tokens: Optional[int] = Field(default=None, ge=1024, le=10_000_000)
     context_auto_compact: Optional[bool] = None
@@ -296,3 +325,163 @@ class ConstraintAuditView(BaseModel):
     by_source: dict[str, int] = Field(default_factory=dict)
     by_code: dict[str, int] = Field(default_factory=dict)
     recent_events: list[ConstraintAuditEventView] = Field(default_factory=list)
+
+
+class RunSummaryView(BaseModel):
+    run_name: str
+    command: str = ""
+    status: str = ""
+    created_at: str = ""
+    started_at: str = ""
+    ended_at: str = ""
+    exit_code: int = 0
+    message: str = ""
+    targets: list[str] = Field(default_factory=list)
+
+
+class RunEventView(BaseModel):
+    timestamp: str = ""
+    kind: str = ""
+    payload: dict[str, Any] = Field(default_factory=dict)
+
+
+class RunDetailView(RunSummaryView):
+    run_dir: str = ""
+    artifacts: dict[str, str] = Field(default_factory=dict)
+    resume: dict[str, Any] = Field(default_factory=dict)
+    events: list[RunEventView] = Field(default_factory=list)
+    findings: dict[str, Any] | list[Any] | None = None
+    reports: list[str] = Field(default_factory=list)
+
+
+FindingTriageStatus = Literal[
+    "new",
+    "triaged",
+    "confirmed",
+    "false_positive",
+    "fixed",
+    "risk_accepted",
+]
+
+
+class FindingView(BaseModel):
+    finding_key: str
+    title: str
+    severity: str = ""
+    vuln_type: str = ""
+    lifecycle_status: str = ""
+    verified: bool = False
+    triage_status: FindingTriageStatus = "new"
+    note: str = ""
+    assignee: str = ""
+
+
+class FindingTriageRequest(BaseModel):
+    target: str = Field(min_length=1, max_length=2048)
+    finding_key: str = Field(min_length=1, max_length=4096)
+    triage_status: FindingTriageStatus
+    note: str = Field(default="", max_length=4000)
+    assignee: str = Field(default="", max_length=200)
+
+    @field_validator("target", "finding_key")
+    @classmethod
+    def reject_control_characters(cls, value: str) -> str:
+        return _reject_control_chars(value) or ""
+
+
+class MCPToggleRequest(BaseModel):
+    name: str = Field(min_length=1, max_length=120)
+    enabled: bool
+
+
+class ProjectView(BaseModel):
+    slug: str
+    name: str
+    customer: str = ""
+    scope: str = ""
+    created_at: str = ""
+    targets: list[str] = Field(default_factory=list)
+
+
+class ProjectCreateRequest(BaseModel):
+    name: str = Field(min_length=1, max_length=120)
+    customer: str = Field(default="", max_length=200)
+    scope: str = Field(default="", max_length=2000)
+    targets: list[str] = Field(default_factory=list, max_length=200)
+
+
+class ProjectTargetRequest(BaseModel):
+    target: str = Field(min_length=1, max_length=2048)
+
+
+INTEGRATION_EVENTS = ("run.completed", "run.failed")
+
+IntegrationEvent = Literal["run.completed", "run.failed"]
+
+
+class IntegrationView(BaseModel):
+    name: str
+    kind: Literal["webhook", "jira", "defectdojo"]
+    url: str
+    project_key: str = ""
+    enabled: bool = True
+    token_configured: bool = False
+    events: list[str] = Field(default_factory=lambda: list(INTEGRATION_EVENTS))
+
+
+class IntegrationUpsertRequest(BaseModel):
+    name: str = Field(min_length=1, max_length=120)
+    kind: Literal["webhook", "jira", "defectdojo"]
+    url: str = Field(min_length=1, max_length=2048)
+    token: str = Field(default="", max_length=4096)
+    project_key: str = Field(default="", max_length=120)
+    enabled: bool = True
+    events: list[IntegrationEvent] = Field(default_factory=lambda: list(INTEGRATION_EVENTS))
+
+
+class IntegrationDeliveryView(BaseModel):
+    name: str
+    ok: bool
+    attempts: int
+    status_code: Optional[int] = None
+    error: str = ""
+
+
+class IntegrationDeliveryLogView(BaseModel):
+    at: str
+    name: str
+    kind: Literal["run", "findings", "test"] = "run"
+    event: str = ""
+    target: str = ""
+    ok: bool
+    attempts: int = 0
+    status_code: Optional[int] = None
+    error: str = ""
+    items: int = 0
+    retryable: bool = False
+
+
+class IntegrationDispatchRequest(BaseModel):
+    target: str = Field(min_length=1, max_length=2048)
+    run_name: str = Field(default="", max_length=200)
+    findings: list[dict[str, Any]] = Field(default_factory=list, max_length=500)
+
+
+class ScheduleView(BaseModel):
+    name: str
+    target: str
+    command: str = "recon"
+    interval_seconds: float = 3600
+    enabled: bool = True
+    options: dict[str, Any] = Field(default_factory=dict)
+    last_run: float | None = None
+    next_run: float | None = None
+
+
+class ScheduleUpsertRequest(BaseModel):
+    name: str = Field(min_length=1, max_length=120)
+    target: str = Field(min_length=1, max_length=2048)
+    command: Literal["run", "recon", "scan", "exploit", "persistent", "codescan"] = "recon"
+    interval_seconds: float = Field(default=3600, ge=60, le=30 * 86400)
+    enabled: bool = True
+    options: dict[str, Any] = Field(default_factory=dict)

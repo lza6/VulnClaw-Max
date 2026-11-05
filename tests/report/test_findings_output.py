@@ -267,8 +267,8 @@ class TestWriteArtifacts:
 
         session = _make_mixed_session()
         generate_report(session, str(tmp_path / "report.md"))
-        assert (tmp_path / "findings" / "findings.json").exists()
-        assert (tmp_path / "findings" / "findings.sarif").exists()
+        assert (tmp_path / "report_findings" / "findings.json").exists()
+        assert (tmp_path / "report_findings" / "findings.sarif").exists()
 
     def test_persistent_cycle_report_emits_findings_dir(self, tmp_path):
         from vulnclaw.report.generator import generate_persistent_cycle_report
@@ -283,5 +283,5 @@ class TestWriteArtifacts:
             rounds_per_cycle=100,
             output_path=str(tmp_path / "cycle.md"),
         )
-        assert (tmp_path / "findings" / "findings.json").exists()
-        assert (tmp_path / "findings" / "findings.sarif").exists()
+        assert (tmp_path / "cycle_findings" / "findings.json").exists()
+        assert (tmp_path / "cycle_findings" / "findings.sarif").exists()

@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "vulnclaw"
-version = "0.4.1"
+version = "0.5.0"
 description = "AI-powered penetration testing CLI tool for cybersecurity professionals"
 readme = "README.md"
 license = { text = "MIT" }
@@ -93,7 +93,6 @@ vulnclaw = "vulnclaw.cli.main:app"
 [tool.hatch.build]
 exclude = [
     "/frontend/node_modules",
-    "/frontend/dist",
     "/tui/target",
     "/.test-tmp",
     "/.pytest_cache",
@@ -117,6 +116,7 @@ include = [
     "/tests",
     "/scripts",
     "/protocol",
+    "/examples",
     "/README.md",
     "/README_EN.md",
     "/LICENSE",
@@ -125,7 +125,6 @@ include = [
 ]
 exclude = [
     "/frontend/node_modules",
-    "/frontend/dist",
     "/tui/target",
     "/.test-tmp",
     "/.pytest_cache",
@@ -150,6 +149,9 @@ testpaths = ["tests"]
 # Coverage is opt-in to keep normal runs fast:
 #   pytest --cov=vulnclaw --cov-report=term-missing
 [tool.coverage.run]
+# Whole-package measurement: nothing is excluded. The interactive TUI, the
+# first-run wizard and the MCP lifecycle used to be omitted; they are now
+# covered with fake consoles/applications and fake MCP SDK transports.
 source = ["vulnclaw"]
 
 [tool.coverage.report]
@@ -157,7 +159,7 @@ show_missing = true
 skip_covered = true
 # A floor below current coverage (~74%) so a large regression fails CI without
 # being brittle; raise it as coverage climbs.
-fail_under = 70
+fail_under = 82
 exclude_lines = [
     "pragma: no cover",
     "if TYPE_CHECKING:",

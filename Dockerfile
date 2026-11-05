@@ -8,7 +8,7 @@ WORKDIR /frontend
 COPY frontend/package.json frontend/package-lock.json ./
 RUN npm ci
 
-# Build the SPA into /frontend/dist
+# Build the SPA into /vulnclaw/web/dist (vite.config.ts outDir)
 COPY frontend/ ./
 RUN npm run build
 
@@ -48,7 +48,7 @@ COPY vulnclaw ./vulnclaw
 # hatchling aborts the editable install when it is missing from the build root.
 COPY protocol ./protocol
 
-# Editable install so vulnclaw resolves to /app and finds frontend/dist.
+# Editable install so vulnclaw resolves to /app and finds vulnclaw/web/dist.
 #   web → fastapi + uvicorn for the Web UI
 #   kb  → chromadb, so the knowledge base runs semantic search instead of
 #         silently degrading to the keyword fallback
@@ -60,7 +60,7 @@ RUN pip install -e ".[web,kb,pdf]"
 
 # Bring in the built frontend so the full React UI is served (not the
 # bundled single-file fallback). resolve_web_index() looks for this path.
-COPY --from=frontend /frontend/dist ./frontend/dist
+COPY --from=frontend /vulnclaw/web/dist ./vulnclaw/web/dist
 
 # Run as an unprivileged user; /data holds all mutable state.
 RUN useradd --create-home --uid 1000 vulnclaw \

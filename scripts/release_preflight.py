@@ -26,6 +26,8 @@ def main() -> int:
     if not npm_cmd:
         raise FileNotFoundError("npm was not found in PATH")
     run_step("frontend-types", [npm_cmd, "exec", "--", "tsc", "-b"], cwd=FRONTEND)
+    # Web UI 产物直接落在 vulnclaw/web/dist，打包前必须先构建一次。
+    run_step("frontend-build", [npm_cmd, "run", "build"], cwd=FRONTEND)
     if args.build:
         run_step("build-package", [sys.executable, "-m", "build"])
         run_step("verify-dist", [sys.executable, "scripts/verify_dist_artifacts.py"])

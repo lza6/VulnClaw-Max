@@ -9,6 +9,7 @@ from dataclasses import dataclass, field
 from typing import Any, Callable, Literal
 
 from vulnclaw.agent.agent_graph import AgentGraph, AgentOutcome, FanOutCaps
+from vulnclaw.agent.errors import LLMInvocationError
 from vulnclaw.agent.parallel_agents import merge_session_state
 from vulnclaw.agent.roles import ROLE_REGISTRY, get_role, tool_allowed_for_role
 
@@ -110,7 +111,9 @@ async def make_team_plan(agent: Any, origin: str, goal: str, facts: list[str]) -
     try:
         try:
             raw = await structured_call(agent, prompt, max_tokens=1200)
-        except Exception:
+        except Exception as exc:
+            if isinstance(exc, LLMInvocationError) and exc.fatal:
+                raise
             return _fallback_plan(goal)
     finally:
         agent.active_role = previous_role
@@ -147,7 +150,9 @@ async def ask_adviser(
     try:
         try:
             raw = await structured_call(agent, prompt, max_tokens=600)
-        except Exception:
+        except Exception as exc:
+            if isinstance(exc, LLMInvocationError) and exc.fatal:
+                raise
             return TeamDecision(action="continue", reason="adviser structured call failed")
     finally:
         agent.active_role = previous_role
@@ -294,6 +299,7 @@ def _default_agent_factory(root_agent: Any) -> AgentFactory:
             return cls(
                 getattr(root_agent, "config", None),
                 getattr(root_agent, "mcp_manager", None),
+                console_output=False,
             )
         except TypeError:
             child = cls()

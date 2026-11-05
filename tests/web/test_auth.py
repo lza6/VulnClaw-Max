@@ -44,6 +44,14 @@ class TestTokenFile:
         assert not auth._client_is_loopback("8.8.8.8")
         assert not auth._client_is_loopback(None)
 
+    def test_host_header_rejects_dns_rebinding_domains(self, monkeypatch):
+        assert auth._host_is_allowed(_FakeRequest(headers={"host": "localhost:7788"}))
+        assert auth._host_is_allowed(_FakeRequest(headers={"host": "127.0.0.1:7788"}))
+        assert auth._host_is_allowed(_FakeRequest(headers={"host": "[::1]:7788"}))
+        assert not auth._host_is_allowed(_FakeRequest(headers={"host": "evil.example"}))
+        monkeypatch.setenv("VULNCLAW_WEB_ALLOWED_HOSTS", "pentest.internal")
+        assert auth._host_is_allowed(_FakeRequest(headers={"host": "pentest.internal"}))
+
 
 class _FakeRequest:
     """Minimal stand-in for the Starlette Request surface the auth gate reads."""

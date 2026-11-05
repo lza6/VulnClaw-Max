@@ -3,6 +3,59 @@
 ---
 
 <details open>
+<summary><strong>v0.5.0</strong> — 可靠性内核 + Web 工作台</summary>
+
+- 本条目汇总“未发布”段落中的可靠性、事件流、持久化、项目、报告、E2E、集成、调度、离线、插件改动。
+
+</details>
+
+
+<details open>
+<summary><strong>未发布</strong> — Web UI 随包分发 + 界面语言跟随浏览器</summary>
+
+- **Web UI 随包分发** — Vite 产物改为输出到 `vulnclaw/web/dist`，wheel 与 sdist 都自带前端，`pip install 'vulnclaw[web]'` 后 `vulnclaw web` 直接是完整界面，不再落到 Fallback Web Shell。静态资源按「包内构建产物 → 占位页」回落。
+- **`vulnclaw web` 启动信息标注 UI 来源** — 面板新增 `UI: built SPA` / `UI: fallback shell`，缺前端产物时给出构建提示而不是静默返回占位页。
+- **Web UI 默认语言改为跟随浏览器** — 此前硬编码英文，中文浏览器也要手动到设置页切换；现在按 `navigator.languages` 判定中英文，其它语种回落中文，显式保存过的偏好仍优先。
+- **补 `home.auto_scope` 缺失文案** — 首页扫描表单此前直接渲染 key 原文，中英文均已补齐。
+- **发布预检补前端构建** — `scripts/release_preflight.py` 在打包前执行 `npm run build`，否则 wheel 与 sdist 会缺少 `vulnclaw/web/dist`，发布出去的包只剩占位页。
+- **失败不再被记为成功** — LLM 鉴权/重试耗尽会抛 `LLMInvocationError`；`recon`/`scan`/`exploit` 与 `run --engine solve/team/rounds`、`persistent` 全部退出码 1，Web 默认 `run` 任务发 `task_failed`；任务命令增加凭据预检。
+- **后台任务初始化失败可见** — `_run_task` 全函数 `try/finally`，任何 setup 异常落到 `failed`，不再永久停在 `pending`，并清理运行句柄。
+- **Web 事件流重做** — 单调 `seq` + 环形缓冲 + 心跳 + `Last-Event-ID` 续传；消除重复投递与无界队列；事件按任务 append-only JSONL，任务快照去抖并保留最近 200 个任务/7 天事件。
+- **任务生命周期闭环** — 终态幂等、`stop` 已完成任务返回 409、重启后非终态任务对账为 `interrupted`、并发任务排队与优雅停机。
+- **Windows 控制台统一 UTF-8** — `vulnclaw/encoding.py` 集中配置，CLI 与直接嵌入的 Web app 都受益；后台任务不再直接 `console.print`。
+- **运行详情与发现处置** — 新增 `/api/runs*` 与运行详情弹窗；发现项支持 `triage_status`/备注/负责人持久化。
+- **Token 汇总与审计导出** — 任务摘要累计 provider usage；`/api/audit/export?format=jsonl|csv` 导出约束审计事件。
+- **项目工作区** — `/api/projects*` 项目记录/目标关联；任务带 `project_id`，首页项目选择；CLI `--project`；报告落 `projects/<slug>/reports/`。
+- **报告格式** — Web 报告新增 PDF；JSON/SARIF 下载类型与文件名修正；findings 产物按报告隔离；报告内容统一做密钥脱敏。
+- **MCP 控制** — `/api/mcp/toggle` 持久化 MCP 启停（对下一个任务生效）。
+- **目标列表与静态资源修复** — 目标列表先排序截断、坏文件跳过；缺失静态资源返回 404。
+- **版本单一来源 + 前端测试** — `vulnclaw.__version__` 为唯一真值，Vite 注入版本；新增 Vitest/Testing Library 用例并接入 CI。
+- **长稳脚本** — `scripts/soak_web.py` 用 codescan 任务、SSE 重连与 RSS 采样做本地 soak。
+- **目标索引与启动优化** — `targets/index.json` 让 500 目标列表降到 0.012 s；CLI 延迟导入让 `--help` 降到约 0.45 s。
+- **质量门禁** — 全仓覆盖率 82.37%，`fail_under=82`，`[tool.coverage.run]` 不再排除任何模块：交互 TUI 与首启向导用假控制台/假 prompt_toolkit Application 驱动，MCP 生命周期用假 SDK 传输覆盖。
+- **集成导出** — webhook/Jira/DefectDojo 适配器、重试/幂等/超时，`/api/integrations` 配置与触达。
+- **调度** — 进程内 interval scheduler、`/api/schedules`、lifespan 5s 轮询。
+- **离线模式** — 全局 `--offline`，doctor 与 provider 探测自动跳过。
+- **插件生态** — entry_points 发现、权限白名单、`min_core_version` 校验。
+- **报告模板** — 报告新增 `pentest` / `executive` / `ctf` 三种模板：执行摘要只保留风险态势、业务影响与修复优先级，CTF 报告以利用链与复现步骤为主；Web 报告中心与 `vulnclaw report --template` 均可选择，报告文件名带模板标识。
+- **集成配置界面与通知 Webhook** — 设置页新增「集成」分区：Webhook / Jira / DefectDojo 的增删改、令牌保留、订阅事件与一键测试；任务结束（`run.completed` / `run.failed`）按订阅向 Webhook 推送一次事件，重试/幂等键复用导出通道，投递失败只记日志、不改变任务状态。
+- **报告模板默认值** — 新增 `session.report_template`（`config set session.report_template executive` / 设置页「自动报告模板」）；
+  `run`/`recon`/`scan`/`exploit`/`persistent` 的自动报告、REPL 报告与 `vulnclaw report` 默认全部跟随该配置；非法值在写盘前被拒绝（否则整份 config 会因校验失败被静默重置）。
+- **调度配置界面** — 设置页新增「自动化」分区：定时任务的增删改、启停、间隔与 JSON 参数（前端校验）、下次/上次运行时间、以及「立即执行到期任务」。
+- **任务通知覆盖三类平台** — Jira 建 issue（描述为 ADF，符合 `/rest/api/3/issue` 的 v3 校验）、DefectDojo 建 engagement、Webhook 收原始事件 JSON；
+  缺少 Jira 项目键 / DefectDojo 产品 ID 时先返回可操作的失败原因，不发注定 400 的请求。
+- **投递记录与重试** — 每次投递（运行通知/发现项/测试）写入有界历史（最近 100 条），设置页显示上一次投递结果与最近记录；
+  最近一次运行通知失败时可一键重投，成功后不再重复重投。投递失败仍只记日志，不改变任务状态。
+- **修复：选择项目导致任务创建 422** — `options.project` 被“命令无关选项”校验拦下，首页项目选择器一选项目就 422；`project` 现为跨命令字段。
+- **修复：目标子路由被通配路由遮蔽** — `{target:path}` 注册在 `/raw`、`/snapshots`、`/rollback` 之前，导致历史页的快照列表与差异对比恒为空；通配路由改为最后注册。
+- **插件样例包与清单界面** — 新增可安装的样例插件 `examples/plugins/vulnclaw-plugin-demo`（`Set-Cookie` 安全属性检测）；`/api/plugins` 汇总内置与 `vulnclaw.plugins` 入口点插件，单个坏入口点只记录为加载错误，不再整体失败；Web 新增插件页（阶段/来源筛选、搜索）。
+- **真实 E2E** — Playwright + 本地 mock LLM，覆盖首页任务、运行详情、发现处置、报告 SARIF 下载、stop 409 与终态 SSE，以及集成配置的保存/测试/删除、executive 模板报告生成、插件清单筛选、任务完成通知投递、投递历史、定时任务增删改、项目关联任务、历史快照（11 条用例）；CI 增加前端 E2E step。
+
+</details>
+
+---
+
+<details open>
 <summary><strong>v0.4.1</strong> — Windows TUI 粘贴/闪退修复 + REPL LLM 错误显示</summary>
 
 - **修复 Windows TUI 无法粘贴** — Windows 无 bracketed paste（crossterm 0.28 仅在 Unix 解析该序列），`Ctrl+V` 此前落入空分支被静默丢弃；现在 `Ctrl+V` / `Shift+Insert` / 鼠标右键三个触发器均直接读取系统剪贴板粘贴到输入框（#296）。

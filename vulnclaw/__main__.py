@@ -6,7 +6,11 @@ The Rust ratatui TUI (``tui/``) spawns the Python core via
 console script entry point (``vulnclaw.cli.main:app`` in pyproject.toml).
 """
 
-from vulnclaw.cli.main import app
+from vulnclaw.encoding import configure_stdio_utf8
+
+configure_stdio_utf8()
+
+from vulnclaw.cli.main import app  # noqa: E402
 
 if __name__ == "__main__":
     app()

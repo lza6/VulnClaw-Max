@@ -661,7 +661,7 @@ class TestWebServices:
                 return None
 
         class DummyAgent:
-            def __init__(self, config, mcp_manager):
+            def __init__(self, config, mcp_manager, **kwargs):
                 self.config = config
                 self.mcp_manager = mcp_manager
                 self.context = type(
@@ -831,7 +831,7 @@ class TestWebServices:
         observed_lang: dict[str, str] = {}
 
         class DummyAgent:
-            def __init__(self, config, mcp_manager):
+            def __init__(self, config, mcp_manager, **kwargs):
                 self.config = config
                 self.mcp_manager = mcp_manager
                 self.context = type(
@@ -949,18 +949,19 @@ class TestWebServices:
         monkeypatch.setattr(report_service, "load_config", lambda: config)
         monkeypatch.setattr(report_service, "init_i18n", fake_init_i18n)
         monkeypatch.setattr(report_service, "load_target_state", lambda target: {"target": target})
-        monkeypatch.setattr(
-            report_service,
-            "generate_report_from_target_state",
-            lambda raw, report_format, output_path: output_path,
-        )
+        def fake_generate(raw, report_format, output_path, template="pentest"):
+            captured["template"] = template
+            return output_path
 
-        report_service.generate_target_report("https://example.com")
+        monkeypatch.setattr(report_service, "generate_report_from_target_state", fake_generate)
+
+        report_service.generate_target_report("https://example.com", template="ctf")
 
         assert captured["language"] == "en", (
             "generate_target_report must init i18n from config so the report "
             "honors the configured language"
         )
+        assert captured["template"] == "ctf", "the requested template must reach the generator"
 
     @pytest.mark.asyncio
     async def test_orchestrator_shared_run_flow(self, monkeypatch):
@@ -1088,8 +1089,13 @@ class TestWebApp:
         monkeypatch.setattr(web_app, "FRONTEND_DIST_DIR", dist_dir)
         monkeypatch.setattr(web_app, "STATIC_DIR", static_dir)
 
+        (dist_dir / "assets").mkdir()
+        (dist_dir / "assets" / "app.js").write_text("js", encoding="utf-8")
+
         assert web_app.resolve_web_index() == dist_dir / "index.html"
-        assert web_app.resolve_web_asset("assets/app.js") == dist_dir / "index.html"
+        assert web_app.resolve_web_asset("assets/app.js") == dist_dir / "assets" / "app.js"
+        assert web_app.resolve_web_asset("assets/missing.js") is None
+        assert web_app.resolve_web_asset("deep/route") == dist_dir / "index.html"
 
     def test_resolve_web_asset_blocks_path_traversal(self, monkeypatch, tmp_path):
         import vulnclaw.web.app as web_app
@@ -1106,8 +1112,8 @@ class TestWebApp:
         monkeypatch.setattr(web_app, "FRONTEND_DIST_DIR", dist_dir)
         monkeypatch.setattr(web_app, "STATIC_DIR", static_dir)
 
-        assert web_app.resolve_web_asset("../secret.txt") == dist_dir / "index.html"
-        assert web_app.resolve_web_asset("..\\secret.txt") == dist_dir / "index.html"
+        assert web_app.resolve_web_asset("../secret.txt") is None
+        assert web_app.resolve_web_asset("..\\secret.txt") is None
 
     def test_web_schema_rejects_unsafe_config_values(self):
         from pydantic import ValidationError
@@ -1234,9 +1240,12 @@ class TestWebApp:
         assert "error_boundary.reload" in error_boundary_source
         assert 'tone?: "primary" | "danger"' in confirm_source
         assert 'tone === "danger" ? "danger-btn" : "primary-btn"' in confirm_source
-        assert "event.key === \"Escape\"" in confirm_source
-        assert "removeEventListener(\"keydown\"" in confirm_source
-        assert "cancelButtonRef.current?.focus()" in confirm_source
+        assert "useDialogFocus" in confirm_source
+        focus_source = (root / "src" / "hooks" / "useDialogFocus.ts").read_text(encoding="utf-8")
+        assert "event.key === \"Escape\"" in focus_source
+        assert "removeEventListener(\"keydown\"" in focus_source
+        assert "focusables[0]" in focus_source
+        assert "previous.current?.focus" in focus_source
         assert 'aria-describedby="confirm-copy"' in confirm_source
         assert 'id="confirm-copy"' in confirm_source
         assert ".confirm-copy" in styles_source
@@ -1283,15 +1292,13 @@ class TestWebApp:
         assert "reports.generate" in reports_source
         assert "reports.clear_filters" in reports_source
         assert "resetReportFilters" in reports_source
-        assert 'useState<"all" | "markdown" | "html">("all")' in reports_source
+        assert 'useState<"all" | "markdown" | "html" | "pdf" | "json" | "sarif">("all")' in reports_source
         assert "setKindFilter(preferences.reportFormat)" not in reports_source
         assert "await reportsQuery.refetch()" in reports_source
         assert "setSelectedPath(result.path)" in reports_source
         assert 'sandbox=""' in report_preview_source
         assert "srcDoc={content}" in report_preview_source
-        assert "event.key === \"Escape\"" in report_preview_source
-        assert "removeEventListener(\"keydown\"" in report_preview_source
-        assert "closeButtonRef.current?.focus()" in report_preview_source
+        assert "useDialogFocus" in report_preview_source
         assert 'aria-labelledby="report-preview-title"' in report_preview_source
         assert 'id="report-preview-title"' in report_preview_source
         assert "parseOptionalPort(onlyPort)" in task_console_source
@@ -1538,7 +1545,7 @@ class TestWebAuthLoopback:
             def __init__(self, path, host, headers=None, cookies=None):
                 self.url = _URL(path)
                 self.client = _Client(host) if host else None
-                self.headers = headers or {}
+                self.headers = headers if headers is not None else {"host": host or "localhost"}
                 # Real Starlette requests always expose .cookies; the auth gate
                 # consults it for the browser session cookie.
                 self.cookies = cookies or {}

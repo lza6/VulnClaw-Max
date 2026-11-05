@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import zipfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -33,6 +34,15 @@ def verify_dist_artifacts(dist_dir: Path = DIST_DIR, version: str | None = None)
     if empty:
         names = ", ".join(path.name for path in empty)
         raise ValueError(f"empty dist artifacts detected: {names}")
+
+    for wheel in wheel_matches:
+        with zipfile.ZipFile(wheel) as archive:
+            names = set(archive.namelist())
+        if "vulnclaw/web/dist/index.html" not in names:
+            raise ValueError(
+                f"wheel {wheel.name} does not contain the built Web UI "
+                "(vulnclaw/web/dist/index.html); run `cd frontend && npm run build` first"
+            )
 
     return artifacts
 

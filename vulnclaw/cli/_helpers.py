@@ -10,10 +10,12 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Any, Optional
 
+import typer
 from rich.console import Console
 from rich.text import Text
 
 from vulnclaw import __version__
+from vulnclaw.agent.errors import LLMInvocationError
 from vulnclaw.config.text_utils import format_think_tags, strip_think_tags
 from vulnclaw.i18n import _
 
@@ -404,6 +406,7 @@ def _generate_report_for_target(
     current_session: Any = None,
     report_format: str = "markdown",
     output_path: Optional[str] = None,
+    template: str = "pentest",
 ) -> str:
     """Generate a report for a target using the best available source data."""
 
@@ -414,16 +417,20 @@ def _generate_report_for_target(
     if current_session is not None and (
         current_session.findings or current_session.executed_steps or current_session.notes
     ):
-        path = generate_report(current_session, output_path, report_format=report_format)
+        path = generate_report(
+            current_session, output_path, report_format=report_format, template=template
+        )
         return str(path)
 
     state = load_target_state(target)
     if state:
-        path = generate_report_from_target_state(state, output_path=output_path)
+        path = generate_report_from_target_state(
+            state, output_path=output_path, template=template
+        )
         return str(path)
 
     session = SessionState(target=target)
-    path = generate_report(session, output_path, report_format=report_format)
+    path = generate_report(session, output_path, report_format=report_format, template=template)
     return str(path)
 
 
@@ -506,6 +513,13 @@ async def _run_cli_orchestrated_task(
     from vulnclaw.orchestrator import run_agent_task
 
     config = load_config()
+    project = os.environ.get("VULNCLAW_PROJECT", "").strip()
+    if project:
+        from vulnclaw.web.services.project_service import assign_target
+
+        if assign_target(project, target) is None:
+            err_console.print(f"[!] Project not found: {project}")
+            raise typer.Exit(1)
     install_cli_approval_channel(config)
     mcp_manager = MCPLifecycleManager(config)
     mcp_manager.start_enabled_servers()
@@ -517,16 +531,30 @@ async def _run_cli_orchestrated_task(
                 f"[*] Restored saved target state: [bold]{restore_result.target or target}[/]"
             )
 
-        return await run_agent_task(
-            agent=agent,
-            command=command,
-            target=target,
-            resume=resume,
-            snapshot_id=snapshot,
-            on_restored=on_restored,
-            runner=lambda shared_agent: runner(shared_agent, config),
-            **run_context,
-        )
+        try:
+            result = await run_agent_task(
+                agent=agent,
+                command=command,
+                target=target,
+                resume=resume,
+                snapshot_id=snapshot,
+                on_restored=on_restored,
+                runner=lambda shared_agent: runner(shared_agent, config),
+                **run_context,
+            )
+        except LLMInvocationError as exc:
+            err_console.print(f"[!] {exc}")
+            raise typer.Exit(1) from exc
+
+        status = getattr(result, "status", "completed")
+        if status == "failed":
+            message = getattr(result, "summary", {}).get("error") or "Task failed"
+            err_console.print(f"[!] {message}")
+            raise typer.Exit(1)
+        if status == "interrupted":
+            err_console.print("[!] Task interrupted.")
+            raise typer.Exit(130)
+        return result
     finally:
         import signal
 

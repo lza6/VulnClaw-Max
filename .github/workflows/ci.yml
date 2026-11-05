@@ -54,6 +54,15 @@ jobs:
         working-directory: frontend
         run: npx tsc -b
 
+      - name: Frontend unit tests
+        working-directory: frontend
+        run: npm run test
+
+      - name: Frontend E2E
+        if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.12'
+        working-directory: frontend
+        run: npm run e2e
+
       - name: Pytest
         if: matrix.os != 'ubuntu-latest' || matrix.python-version != '3.12'
         run: pytest -q

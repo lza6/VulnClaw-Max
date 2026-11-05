@@ -128,3 +128,46 @@ def test_registry_unregister_and_clear_are_idempotent():
 
 def test_global_registry_is_plugin_registry():
     assert isinstance(registry, PluginRegistry)
+
+
+def test_entry_point_plugins_are_loaded(monkeypatch):
+    import importlib.metadata
+
+    class Entry:
+        name = "demo"
+
+        @staticmethod
+        def load():
+            return DemoPlugin
+
+    monkeypatch.setattr(importlib.metadata, "entry_points", lambda group=None: [Entry()])
+    plugin_registry = PluginRegistry()
+
+    loaded = plugin_registry.load_entry_points()
+
+    assert plugin_registry.get("demo") is DemoPlugin
+    assert loaded[0]["plugin_id"] == "demo"
+
+
+def test_plugin_with_unknown_permission_is_rejected():
+    class BadPermission(VulnPlugin):
+        plugin_id = "bad-perm"
+        permissions = ("root",)
+
+        def run(self, context: PluginContext) -> PluginResult:
+            return PluginResult(plugin_id=self.plugin_id, stage=context.stage)
+
+    with pytest.raises(ValueError, match="unknown permissions"):
+        PluginRegistry().register(BadPermission)
+
+
+def test_plugin_requiring_newer_core_is_rejected():
+    class FuturePlugin(VulnPlugin):
+        plugin_id = "future"
+        min_core_version = "99.0.0"
+
+        def run(self, context: PluginContext) -> PluginResult:
+            return PluginResult(plugin_id=self.plugin_id, stage=context.stage)
+
+    with pytest.raises(ValueError, match="requires core"):
+        PluginRegistry().register(FuturePlugin)

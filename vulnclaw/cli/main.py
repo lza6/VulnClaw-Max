@@ -10,43 +10,15 @@ import sys
 import time
 from typing import Any, Optional
 
+from vulnclaw.encoding import configure_stdio_utf8
 
-def _configure_windows_console() -> None:
-    """Force UTF-8 console I/O on Windows for reliable Unicode output."""
-    if sys.platform != "win32":
-        return
-
-    os.environ.setdefault("PYTHONIOENCODING", "utf-8")
-    os.environ.setdefault("PYTHONUTF8", "1")
-
-    try:
-        import ctypes
-
-        kernel32 = ctypes.windll.kernel32
-        kernel32.SetConsoleCP(65001)
-        kernel32.SetConsoleOutputCP(65001)
-    except Exception:
-        pass
-
-    for stream_name in ("stdin", "stdout", "stderr"):
-        stream = getattr(sys, stream_name, None)
-        if stream is None or not hasattr(stream, "reconfigure"):
-            continue
-        try:
-            stream.reconfigure(encoding="utf-8", errors="replace")  # type: ignore[attr-defined]
-        except Exception:
-            pass
-
-
-_configure_windows_console()
+configure_stdio_utf8()
 
 import typer
 from rich.panel import Panel
 from rich.text import Text
 
 from vulnclaw import __version__, headless
-from vulnclaw.agent.constraint_policy import validate_action_constraints
-from vulnclaw.agent.input_analysis import extract_task_constraints
 from vulnclaw.cli import experience_ops
 
 # === Stream Output Renderer ===
@@ -67,35 +39,53 @@ from vulnclaw.cli._helpers import (
     format_llm_user_error,
 )
 from vulnclaw.cli.manual import available_topics, render_manual
-from vulnclaw.config.schema import ENGINE_CHOICES
-from vulnclaw.config.settings import (
-    RUNS_DIR,
-    apply_provider_preset,
-    list_providers,
-    load_config,
-    save_config,
-    set_config_value,
-)
-from vulnclaw.config.token_provider import has_llm_credentials
+
+RUNS_DIR: Any = None
+
+
+def apply_target_state_to_agent(*args, **kwargs):
+    from vulnclaw.target_state.store import apply_target_state_to_agent as _impl
+
+    return _impl(*args, **kwargs)
+
+
+def has_llm_credentials(*args, **kwargs):
+    from vulnclaw.config.token_provider import has_llm_credentials as _impl
+
+    return _impl(*args, **kwargs)
+
+
+def load_config(*args, **kwargs):
+    from vulnclaw.config.settings import load_config as _impl
+
+    return _impl(*args, **kwargs)
+
+
+def save_config(*args, **kwargs):
+    from vulnclaw.config.settings import save_config as _impl
+
+    return _impl(*args, **kwargs)
+
+
+def set_config_value(*args, **kwargs):
+    from vulnclaw.config.settings import set_config_value as _impl
+
+    return _impl(*args, **kwargs)
+
+
+def apply_provider_preset(*args, **kwargs):
+    from vulnclaw.config.settings import apply_provider_preset as _impl
+
+    return _impl(*args, **kwargs)
+
+
+def list_providers(*args, **kwargs):
+    from vulnclaw.config.settings import list_providers as _impl
+
+    return _impl(*args, **kwargs)
+
 from vulnclaw.i18n import _
 from vulnclaw.i18n.phases import localized_phase_name
-from vulnclaw.repl_runner import run_repl_call
-from vulnclaw.target_state.store import (
-    apply_target_state_to_agent,
-    clear_target_state,
-    diff_target_state_snapshots,
-    get_target_state_preview,
-    list_target_snapshots,
-    load_target_state,
-    rollback_target_state,
-)
-from vulnclaw.task_service import (
-    SCOPE_FIELDS,
-    TaskCreateRequest,
-    TaskOptions,
-    prepare_task,
-    run_task_action,
-)
 
 
 def _emit_solve_report_if_completed(agent: Any, config: Any) -> str:
@@ -152,6 +142,8 @@ def _prepare_repl_target(
 
 async def _run_repl_agent_call(agent, *, call, after_result) -> None:
     """Run a REPL agent call and hand each result back to a caller hook."""
+    from vulnclaw.repl_runner import run_repl_call
+
     await run_repl_call(call=call, after_result=after_result)
 
 
@@ -631,6 +623,7 @@ def _run_repl() -> None:
                     if agent.session_state.target == report_target
                     else None,
                     report_format=config.session.report_format,
+                    template=config.session.report_template,
                 )
                 console.print(_("cli.report_generated", path=report_path))
                 continue
@@ -726,6 +719,7 @@ def _run_repl() -> None:
                             persistent_target,
                             current_session=agent.session_state,
                             report_format=config.session.report_format,
+                            template=config.session.report_template,
                         )
                         console.print(_("cli.partial_report", path=partial_report))
                 except KeyboardInterrupt:
@@ -736,6 +730,7 @@ def _run_repl() -> None:
                                 persistent_target,
                                 current_session=agent.session_state,
                                 report_format=config.session.report_format,
+                                template=config.session.report_template,
                             )
                             console.print(_("persistent.final_report", path=final_report))
                         except Exception as exc:
@@ -1054,6 +1049,7 @@ def _run_non_interactive(
     fail_on: str,
     run_coro_factory,
     classification_holder: dict,
+    report_template: str = "pentest",
 ) -> None:
     """Drive a headless run: no prompts, structured output, exit-code contract.
 
@@ -1077,12 +1073,18 @@ def _run_non_interactive(
     exit_code = headless.determine_exit_code(classification, fail_on)
 
     run_id = datetime.now().strftime("%Y%m%d-%H%M%S")
-    run_dir = headless.run_directory(RUNS_DIR, target, run_id)
+    from vulnclaw.config.settings import RUNS_DIR as default_runs_dir
+
+    run_dir = headless.run_directory(RUNS_DIR or default_runs_dir, target, run_id)
     run_dir.mkdir(parents=True, exist_ok=True)
     # Co-locate the report inside the run directory unless the caller pinned a
     # path with --output, so all structured output for a run lives in one place.
     report_output = output or str(run_dir / "report.md")
-    report_path = _generate_report_for_target(target, output_path=report_output)
+    report_path = _generate_report_for_target(
+        target,
+        output_path=report_output,
+        template=report_template,
+    )
 
     summary = headless.build_run_summary(
         target=target,
@@ -1140,7 +1142,17 @@ def _run_context_kwargs(
     return kwargs
 
 
+def _require_llm_credentials() -> None:
+    """Refuse to start an LLM-backed task when no usable credential exists."""
+    config = load_config()
+    if not has_llm_credentials(config.llm):
+        err_console.print("[!] Configure LLM credentials first (api_key or auth_mode).")
+        raise typer.Exit(1)
+
+
 def _scope_option_kwargs(values: dict[str, Any]) -> dict[str, Any]:
+    from vulnclaw.task_service import SCOPE_FIELDS
+
     return {field: values.get(field) for field in SCOPE_FIELDS}
 
 
@@ -1321,6 +1333,8 @@ def run(
     if not has_llm_credentials(config.llm):
         err_console.print("[!] Configure LLM credentials first (api_key or auth_mode).")
         raise typer.Exit(headless.EXIT_ERROR)
+    from vulnclaw.config.schema import ENGINE_CHOICES
+
     if engine is not None and engine not in ENGINE_CHOICES:
         err_console.print(f"[!] --engine must be one of: {', '.join(ENGINE_CHOICES)}")
         raise typer.Exit(headless.EXIT_ERROR)
@@ -1352,6 +1366,8 @@ def run(
         force_fresh=force_fresh,
         no_import=no_import,
     )
+    from vulnclaw.task_service import TaskCreateRequest, TaskOptions, prepare_task, run_task_action
+
     task_request = TaskCreateRequest(
         command="run",
         target=target,
@@ -1449,6 +1465,7 @@ def run(
             fail_on=fail_on,
             run_coro_factory=_run,
             classification_holder=classification_holder,
+            report_template=config.session.report_template,
         )
         return
 
@@ -1492,7 +1509,11 @@ def run(
         total_findings = orchestrated.summary["findings_count"]
         console.print(_("cli.pentest_finished", findings=total_findings))
 
-    report_path = _generate_report_for_target(target, output_path=output)
+    report_path = _generate_report_for_target(
+        target,
+        output_path=output,
+        template=config.session.report_template,
+    )
     console.print(_("cli.report_generated", path=report_path))
 
 
@@ -1729,6 +1750,8 @@ def persistent(
         force_fresh=force_fresh,
         no_import=no_import,
     )
+    from vulnclaw.task_service import TaskCreateRequest, TaskOptions, prepare_task, run_task_action
+
     task_request = TaskCreateRequest(
         command="persistent",
         target=target,
@@ -1885,6 +1908,7 @@ def recon(
     ),
 ) -> None:
     """Run reconnaissance only."""
+    _require_llm_credentials()
     run_context = _run_context_kwargs(
         run_name=run_name,
         resume_run_name=resume_run,
@@ -1896,6 +1920,8 @@ def recon(
         force_fresh=force_fresh,
         no_import=no_import,
     )
+    from vulnclaw.task_service import TaskCreateRequest, TaskOptions, prepare_task, run_task_action
+
     task_request = TaskCreateRequest(
         command="recon",
         target=target,
@@ -1991,6 +2017,7 @@ def scan(
     ),
 ) -> None:
     """Run vulnerability scanning only."""
+    _require_llm_credentials()
     run_context = _run_context_kwargs(
         run_name=run_name,
         resume_run_name=resume_run,
@@ -2002,6 +2029,8 @@ def scan(
         force_fresh=force_fresh,
         no_import=no_import,
     )
+    from vulnclaw.task_service import TaskCreateRequest, TaskOptions, prepare_task, run_task_action
+
     task_request = TaskCreateRequest(
         command="scan",
         target=target,
@@ -2179,6 +2208,9 @@ def network_scan(
         task_prompt, effective_allow_actions, effective_block_actions
     )
 
+    from vulnclaw.agent.constraint_policy import validate_action_constraints
+    from vulnclaw.agent.input_analysis import extract_task_constraints
+
     violation = validate_action_constraints("scan", extract_task_constraints(task_prompt))
     if violation is not None:
         err_console.print(f"[!] {violation}")
@@ -2321,6 +2353,7 @@ def exploit(
     ),
 ) -> None:
     """Run exploitation only."""
+    _require_llm_credentials()
     run_context = _run_context_kwargs(
         run_name=run_name,
         resume_run_name=resume_run,
@@ -2332,6 +2365,8 @@ def exploit(
         force_fresh=force_fresh,
         no_import=no_import,
     )
+    from vulnclaw.task_service import TaskCreateRequest, TaskOptions, prepare_task, run_task_action
+
     task_request = TaskCreateRequest(
         command="exploit",
         target=target,
@@ -2392,28 +2427,45 @@ def report(
     pdf_out: str = typer.Option(
         "", "--pdf-out", help="PDF output path (default: the report path with a .pdf suffix)"
     ),
+    template: str = typer.Option(
+        "",
+        "--template",
+        help=(
+            "Report template: pentest (full technical), executive (management summary) or "
+            "ctf (exploit chain). Defaults to session.report_template."
+        ),
+    ),
 ) -> None:
     """Generate a report from a session file or target state."""
     # Report bodies call _() for localized text; initialize i18n from the
     # configured language so non-interactive runs honor session.language
     # instead of falling back to the process locale (VULNCLAW_LANG/LANG).
     from vulnclaw.i18n import init_i18n
+    from vulnclaw.report.variants import REPORT_TEMPLATE_KINDS
 
     report_config = load_config()
     init_i18n(config=report_config)
 
+    template = template.strip().lower() or report_config.session.report_template
+    if template not in REPORT_TEMPLATE_KINDS:
+        err_console.print(
+            f"[!] Unknown template {template!r}; expected one of {', '.join(REPORT_TEMPLATE_KINDS)}"
+        )
+        raise typer.Exit(2)
+
     if target_mode:
         from vulnclaw.report.generator import generate_report_from_target_state
+        from vulnclaw.target_state.store import load_target_state
 
         state = load_target_state(session)
         if not state:
             err_console.print(f"[!] Target state not found: {session}")
             raise typer.Exit(1)
-        report_path = generate_report_from_target_state(state)
+        report_path = generate_report_from_target_state(state, template=template)
     else:
         from vulnclaw.report.generator import generate_report_from_file
 
-        report_path = generate_report_from_file(session)
+        report_path = generate_report_from_file(session, template=template)
     console.print(f"[+] Report generated: {report_path}")
 
     if pdf:
@@ -2495,7 +2547,14 @@ def config_set(
     value: str = typer.Argument(..., help="Config value"),
 ) -> None:
     """Set a config value."""
-    set_config_value(key, value)
+    try:
+        set_config_value(key, value)
+    except (ValueError, AttributeError) as exc:
+        # Rejected values must not be written: load_config drops the whole file
+        # when a field fails validation, so a bad write silently resets every
+        # other setting on the next run.
+        err_console.print(f"[!] {exc}")
+        raise typer.Exit(2) from exc
     console.print(
         f"[+] Set {key} = {'***' if 'key' in key.lower() or 'pass' in key.lower() else value}"
     )
@@ -2717,6 +2776,11 @@ def doctor(
     """Inspect the VulnClaw runtime environment."""
     import shutil
 
+    from vulnclaw.offline import is_offline
+
+    if is_offline():
+        console.print("[yellow]Offline mode: online LLM/provider probes are disabled.[/]")
+
     # 修改者: Nyaecho
     # 修改时间: 2026-07-08
     # 修改原因: V6 修复 — 从 mcp/diagnostics 导入，消除 CLI→Web 依赖。
@@ -2776,7 +2840,7 @@ def doctor(
     console.print(f"  Base URL: [dim]{config.llm.base_url}[/]")
     console.print(f"  Model: [dim]{config.llm.model}[/]")
 
-    if probe_llm:
+    if probe_llm and not is_offline():
         from vulnclaw.config.llm_probe import probe_llm_endpoint
 
         console.print()
@@ -2850,6 +2914,43 @@ def doctor(
 
 # 鈹€鈹€ KB command 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 
+@app.command()
+def gc(
+    older_than: int = typer.Option(30, "--older-than", help="Delete entries older than N days"),
+    keep_last: int = typer.Option(50, "--keep-last", help="Always keep the newest N entries"),
+    dry_run: bool = typer.Option(False, "--dry-run", help="Print what would be deleted"),
+) -> None:
+    """Prune old sessions, runs and target-state directories."""
+    import shutil
+
+    from vulnclaw.config.settings import RUNS_DIR, SESSIONS_DIR, TARGETS_DIR
+
+    roots = (("sessions", SESSIONS_DIR), ("runs", RUNS_DIR), ("targets", TARGETS_DIR))
+    cutoff = time.time() - max(1, older_than) * 86400
+    removed = 0
+    freed = 0
+    for label, root in roots:
+        if not root.exists():
+            continue
+        entries = [path for path in root.iterdir() if path.is_dir() and not path.is_symlink()]
+        entries.sort(key=lambda path: path.stat().st_mtime, reverse=True)
+        for index, path in enumerate(entries):
+            if index < keep_last or path.stat().st_mtime >= cutoff:
+                continue
+            size = sum(item.stat().st_size for item in path.rglob("*") if item.is_file())
+            if dry_run:
+                console.print(f"[dim]would remove[/] {label}/{path.name} ({size} bytes)")
+            else:
+                shutil.rmtree(path, ignore_errors=True)
+                console.print(f"[yellow]removed[/] {label}/{path.name} ({size} bytes)")
+            removed += 1
+            freed += size
+    if not removed:
+        console.print("[green]Nothing to prune.[/]")
+    else:
+        verb = "would remove" if dry_run else "removed"
+        console.print(f"[green]{verb} {removed} entries, {freed} bytes[/]")
+
 kb_app = typer.Typer(help="Security knowledge base commands")
 app.add_typer(kb_app, name="kb")
 
@@ -2885,12 +2986,20 @@ def _parse_kv_options(pairs: Optional[list[str]]) -> dict[str, object]:
 def plugins_list(
     stage: Optional[str] = typer.Option(None, "--stage", help="Filter by stage"),
     tag: Optional[str] = typer.Option(None, "--tag", help="Filter by tag"),
+    external: bool = typer.Option(
+        True, "--external/--no-external", help="Load third-party entry-point plugins"
+    ),
 ) -> None:
     """List registered detection plugins."""
     from rich.table import Table
 
     from vulnclaw.plugins import registry
 
+    if external:
+        try:
+            registry.load_entry_points()
+        except Exception as exc:
+            err_console.print(f"[yellow]Skipping external plugins: {exc}[/]")
     plugin_classes = registry.list()
     if stage:
         try:
@@ -2912,6 +3021,7 @@ def plugins_list(
     table.add_column("Stages")
     table.add_column("Risk")
     table.add_column("Destructive", justify="center")
+    table.add_column("Permissions")
     for plugin_cls in sorted(plugin_classes, key=lambda p: p.plugin_id):
         meta = plugin_cls.metadata()
         table.add_row(
@@ -2920,6 +3030,7 @@ def plugins_list(
             ", ".join(meta["stages"]),
             meta["default_risk"],
             "⚠️" if meta["destructive"] else "-",
+            ", ".join(meta.get("permissions", [])) or "-",
         )
     console.print(table)
 
@@ -3185,6 +3296,8 @@ def target_state_list(
     target: str = typer.Argument(..., help="Target host/IP/URL"),
 ) -> None:
     """List target snapshots."""
+    from vulnclaw.target_state.store import list_target_snapshots
+
     snapshots = list_target_snapshots(target)
     if not snapshots:
         console.print(f"[-] No snapshots found for: {target}")
@@ -3206,6 +3319,8 @@ def target_state_preview_cmd(
     ),
 ) -> None:
     """Show a resume preview for the target state."""
+    from vulnclaw.target_state.store import get_target_state_preview
+
     preview = get_target_state_preview(target, snapshot_id=snapshot_id)
     if not preview:
         console.print(f"[-] No target state found: {target}")
@@ -3247,6 +3362,8 @@ def target_state_diff_cmd(
     ),
 ) -> None:
     """Show differences between two target-state snapshots."""
+    from vulnclaw.target_state.store import diff_target_state_snapshots
+
     diff = diff_target_state_snapshots(target, from_snapshot_id, to_snapshot_id=to_snapshot_id)
     if not diff:
         console.print(f"[-] Unable to diff target state: {target}")
@@ -3286,6 +3403,8 @@ def target_state_rollback_cmd(
     snapshot_id: str = typer.Argument(..., help="Snapshot id to restore"),
 ) -> None:
     """Rollback target state to a snapshot."""
+    from vulnclaw.target_state.store import rollback_target_state
+
     path = rollback_target_state(target, snapshot_id)
     if not path:
         console.print(f"[-] Snapshot not found: {snapshot_id}")
@@ -3299,6 +3418,8 @@ def target_state_clear_cmd(
     target: str = typer.Argument(..., help="Target host/IP/URL"),
 ) -> None:
     """Clear target state."""
+    from vulnclaw.target_state.store import clear_target_state
+
     ok = clear_target_state(target)
     if not ok:
         console.print(f"[-] No target state found: {target}")
@@ -3476,8 +3597,18 @@ def main(
         "--repair",
         help="Repair a corrupt run by rolling back to the last valid snapshot.",
     ),
+    project: Optional[str] = typer.Option(
+        None, "--project", help="Associate the target with a project workspace slug."
+    ),
+    offline: bool = typer.Option(
+        False, "--offline", help="Disable online probes and provider/network discovery."
+    ),
 ) -> None:
     """Open the classic CLI/REPL by default."""
+    if project:
+        os.environ["VULNCLAW_PROJECT"] = project
+    if offline:
+        os.environ["VULNCLAW_OFFLINE"] = "1"
     if version:
         console.print(__version__)
         raise typer.Exit()
@@ -3575,6 +3706,7 @@ def _auto_save_recon_report(agent, user_input: str, config) -> None:
             state,
             output_path,
             report_format=config.session.report_format,
+            template=config.session.report_template,
         )
 
         console.print(f"\n[+] Recon report saved: {output_path}")
@@ -3713,18 +3845,32 @@ def web(
             "[yellow]Warning: keep the Web UI bound to 127.0.0.1 unless you know what you're doing.[/]"
         )
 
-    from vulnclaw.web.app import FASTAPI_AVAILABLE
+    from vulnclaw.web.app import FASTAPI_AVAILABLE, STATIC_DIR, resolve_web_index
+
+    web_index = resolve_web_index()
+    ui_built = web_index.parent != STATIC_DIR
+    ui_line = (
+        "[green]built SPA[/]" if ui_built
+        else "[yellow]fallback shell — frontend not built[/]"
+    )
 
     console.print(
         Panel(
             f"Host: [bold]{host}[/]\n"
             f"Port: [bold]{port}[/]\n"
             f"FastAPI: [{'green' if FASTAPI_AVAILABLE else 'yellow'}]{'installed' if FASTAPI_AVAILABLE else 'missing'}[/]\n"
+            f"UI: {ui_line}\n"
             f"URL: [bold]http://{host}:{port}[/]",
             title="VulnClaw Web UI",
             border_style="cyan",
         )
     )
+
+    if not ui_built:
+        console.print(
+            "[dim]未找到前端构建产物；如需完整界面，安装带 UI 的发行包，"
+            "或在源码树执行 cd frontend && npm ci && npm run build。[/]"
+        )
 
     if dry_run:
         console.print("[green]Web UI dry-run completed.[/]")

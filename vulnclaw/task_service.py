@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import re
 from dataclasses import dataclass
 from typing import Any, Callable, Literal, get_args
@@ -34,6 +35,7 @@ class TaskOptions(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     engine: Literal["solve", "team", "rounds"] | None = None
+    project: str | None = Field(default=None, max_length=64)
     scope: str | None = Field(default=None, max_length=32)
     ports: str | None = Field(default=None, max_length=512)
     max_steps: int | None = Field(default=None, ge=1, le=10000)
@@ -67,6 +69,7 @@ class TaskOptions(BaseModel):
 
     @field_validator(
         "scope",
+        "project",
         "ports",
         "cve",
         "cmd",
@@ -136,7 +139,10 @@ class TaskCreateRequest(BaseModel):
             "recon": set(),
             "codescan": set(),
         }
-        common = set(SCOPE_FIELDS)
+        # ``project`` applies to every command (it only tags where the run is
+        # filed), so it belongs with the cross-command scope fields instead of
+        # being gated per command.
+        common = set(SCOPE_FIELDS) | {"project"}
         supplied = {
             name
             for name in self.options.model_fields_set
@@ -184,6 +190,10 @@ def task_request_from_payload(
 
 
 def prepare_task(request: TaskCreateRequest) -> PreparedTask:
+    if request.options.project is None:
+        env_project = os.environ.get("VULNCLAW_PROJECT", "").strip()
+        if env_project:
+            request.options.project = env_project
     constraints = build_task_constraints(request)
     violation = validate_action_constraints(request.command, constraints)
     if violation is not None:
@@ -395,6 +405,7 @@ async def run_task_action(
         target=request.target,
         stream_sink=stream_sink,
         task_constraints=task.constraints,
+        raise_on_error=True,
     )
 
 

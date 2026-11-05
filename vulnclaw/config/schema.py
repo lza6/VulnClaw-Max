@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from enum import Enum
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import AliasChoices, BaseModel, ConfigDict, Field, model_validator
 
@@ -404,6 +404,10 @@ class SessionConfig(BaseModel):
     auto_save: bool = Field(default=True, description="Auto-save session state")
     report_format: str = Field(
         default="markdown", description="Default report format: markdown, html"
+    )
+    report_template: Literal["pentest", "executive", "ctf"] = Field(
+        default="pentest",
+        description="Default report template: pentest (full), executive (management summary), ctf (exploit chain)",
     )
     poc_language: str = Field(default="python", description="Default PoC language: python, bash")
     max_rounds: int = Field(default=15, description="Max autonomous pentest rounds (1-100)")

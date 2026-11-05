@@ -17,6 +17,7 @@ from vulnclaw import __version__
 # 修改时间: 2026-07-08
 # 修改原因: 消除 V2 违规 — 叶子类型已移至 config/domain_models.py。
 from vulnclaw.agent.context import SessionState
+from vulnclaw.agent.errors import redact_secrets
 from vulnclaw.config.domain_models import VulnerabilityFinding
 from vulnclaw.config.settings import SESSIONS_DIR
 from vulnclaw.i18n import _, current_lang
@@ -24,6 +25,11 @@ from vulnclaw.i18n.phases import localized_phase_name, localized_report_phase_he
 from vulnclaw.report.filter import ReportContentFilter, deduplicate_report_findings
 from vulnclaw.report.findings_output import write_findings_artifacts
 from vulnclaw.report.poc_builder import generate_pocs
+from vulnclaw.report.variants import (
+    includes_reproduction_details,
+    normalize_template,
+    select_variant_template,
+)
 
 
 def _rl(zh: str, en: str) -> str:
@@ -408,12 +414,19 @@ def generate_report(
     llm_attack_summary: str = "",
     report_format: str = "markdown",
     target_state_context: Optional[dict[str, Any]] = None,
+    template: str = "pentest",
 ) -> Path:
     """Generate a penetration test report from session state.
 
     Only verified findings are rendered into the main detailed findings section.
     Pending, candidate, and rejected findings remain in summary/governance views.
+
+    ``template`` selects the report shape: ``pentest`` (default, full technical
+    report), ``executive`` (management summary without exploitation detail) or
+    ``ctf`` (exploit chain and reproduction first).
     """
+
+    template_kind = normalize_template(template)
 
     all_findings = session.findings
     verified_findings = deduplicate_report_findings(session.get_verified_findings())
@@ -451,7 +464,13 @@ def generate_report(
 
         safe_target = (session.target or "unknown").replace("/", "_").replace(":", "_")
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        output_path = str(SESSIONS_DIR / f"report_{timestamp}_{safe_target}.md")
+        # Keep the template in the file name for non-default variants so two
+        # reports for one target generated in the same minute never collide and
+        # the reader can tell an executive summary from a full pentest report.
+        template_tag = "" if template_kind == "pentest" else f"_{template_kind}"
+        output_path = str(
+            SESSIONS_DIR / f"report_{timestamp}{template_tag}_{safe_target}.md"
+        )
 
     output = Path(output_path)
     output.parent.mkdir(parents=True, exist_ok=True)
@@ -473,6 +492,7 @@ def generate_report(
         "generated_at": datetime.now().isoformat(),
         "version": __version__,
         **_severity_count_context(verified_findings),
+        "template": template_kind,
         "task_constraints_summary": _format_task_constraints_summary(session),
         "attack_surface_summary": _summarize_attack_surface(session),
         "constraint_violations": list(getattr(session, "constraint_violations", [])),
@@ -484,6 +504,7 @@ def generate_report(
         "verified_findings": [_build_report_finding(finding) for finding in verified_findings],
         "findings": [_build_report_finding(finding) for finding in verified_findings],
         "executed_steps": session.executed_steps,
+        "executed_step_count": len(session.executed_steps),
         "total_findings_submitted": len(all_findings),
         "verified_count": len(verified_findings),
         "rejected_count": len(rejected_findings),
@@ -497,9 +518,12 @@ def generate_report(
         "llm_attack_summary": filtered_summary,
     }
 
-    template = Template(REPORT_TEMPLATE_EN if current_lang() == "en" else REPORT_TEMPLATE)
-    report_content = template.render(**context)
-    if verified_findings:
+    if template_kind == "pentest":
+        template_source = REPORT_TEMPLATE_EN if current_lang() == "en" else REPORT_TEMPLATE
+    else:
+        template_source = select_variant_template(template_kind)
+    report_content = Template(template_source).render(**context)
+    if verified_findings and includes_reproduction_details(template_kind):
         report_content += "\n\n" + _render_verified_finding_details_clean(
             verified_findings,
             heading=_rl(
@@ -508,9 +532,13 @@ def generate_report(
             ),
             traffic_store=_resolve_traffic_store(output.parent),
         )
-    if target_state_context:
+    # The governance appendix describes resume strategy and prioritised
+    # exploitation targets — technical steering that a management summary
+    # promises to leave out, and it also collides with the variant numbering.
+    if target_state_context and template_kind != "executive":
         report_content += "\n\n" + _render_target_state_context(target_state_context)
 
+    report_content = redact_secrets(report_content)
     if report_format.lower() == "html":
         html_content = Template(
             """<!doctype html><html><head><meta charset="utf-8"><title>VulnClaw Report</title></head><body><pre>{{ content }}</pre></body></html>"""
@@ -518,27 +546,28 @@ def generate_report(
         output = output.with_suffix(".html") if output.suffix.lower() != ".html" else output
         output.write_text(html_content, encoding="utf-8")
     else:
-        output.write_text(report_content, encoding="utf-8")
+        output.write_text(redact_secrets(report_content), encoding="utf-8")
 
     # ★ Emit machine-consumable findings artifacts next to the report: findings.json
     # (all findings + lifecycle) and findings.sarif (verified findings only). These
     # draw from the same verified feed as the report — no divergent finding lists.
 
-    write_findings_artifacts(session, output.parent / "findings")
+    write_findings_artifacts(session, output.parent / f"{output.stem}_findings")
 
     return output
 
 
-def generate_report_from_file(session_path: str) -> Path:
+def generate_report_from_file(session_path: str, template: str = "pentest") -> Path:
     """Generate a report from a saved session JSON file."""
     session = SessionState.load(Path(session_path))
-    return generate_report(session)
+    return generate_report(session, template=template)
 
 
 def generate_report_from_target_state(
     target_state: dict[str, Any],
     report_format: str = "markdown",
     output_path: str | None = None,
+    template: str = "pentest",
 ) -> Path:
     """Generate a report from a target-state snapshot."""
     raw = dict(target_state)
@@ -555,6 +584,7 @@ def generate_report_from_target_state(
         output_path=output_path,
         report_format=report_format,
         target_state_context=target_state_context,
+        template=template,
     )
 
 
@@ -1072,7 +1102,7 @@ def generate_persistent_cycle_report(
     # persistent run's per-cycle reports also produce findings/findings.json and
     # findings/findings.sarif.
 
-    write_findings_artifacts(session, output.parent / "findings")
+    write_findings_artifacts(session, output.parent / f"{output.stem}_findings")
 
     return output
 

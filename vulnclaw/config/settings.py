@@ -6,7 +6,7 @@ import logging
 import os
 from contextlib import suppress
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal, get_args
 from urllib.parse import urlsplit
 
 import yaml
@@ -72,16 +72,29 @@ CONFIG_FILE = CONFIG_DIR / "config.yaml"
 SESSIONS_DIR = CONFIG_DIR / "sessions"
 TARGETS_DIR = CONFIG_DIR / "targets"
 RUNS_DIR = CONFIG_DIR / "runs"
+PROJECTS_DIR = CONFIG_DIR / "projects"
 KB_DIR = CONFIG_DIR / "kb"
 SKILLS_DIR = CONFIG_DIR / "skills"
 WEB_TASKS_FILE = CONFIG_DIR / "web_tasks.json"
+WEB_EVENTS_DIR = CONFIG_DIR / "web_events"
+INTEGRATIONS_FILE = CONFIG_DIR / "integrations.json"
+SCHEDULES_FILE = CONFIG_DIR / "schedules.json"
 PYTHON_EXECUTE_AUDIT_FILE = CONFIG_DIR / "python_execute_audit.jsonl"
 DEFAULT_OPENAI_USER_AGENT = "Mozilla/5.0"
 
 
 def ensure_dirs() -> None:
     """Create VulnClaw config directories if they don't exist."""
-    for d in [CONFIG_DIR, SESSIONS_DIR, TARGETS_DIR, RUNS_DIR, KB_DIR, SKILLS_DIR]:
+    for d in [
+        CONFIG_DIR,
+        SESSIONS_DIR,
+        TARGETS_DIR,
+        RUNS_DIR,
+        PROJECTS_DIR,
+        KB_DIR,
+        SKILLS_DIR,
+        WEB_EVENTS_DIR,
+    ]:
         d.mkdir(parents=True, exist_ok=True)
 
 
@@ -149,13 +162,21 @@ def load_config() -> VulnClawConfig:
 
 
 def save_config(config: VulnClawConfig) -> None:
-    """Save configuration to YAML file."""
+    """Save configuration atomically; a crash never leaves a half-written file."""
     ensure_dirs()
     raw = config.model_dump(mode="json")
     # Remove default values to keep config clean
     _strip_defaults(raw)
-    with open(CONFIG_FILE, "w", encoding="utf-8") as f:
-        yaml.dump(raw, f, default_flow_style=False, allow_unicode=True)
+    temporary = CONFIG_FILE.with_suffix(CONFIG_FILE.suffix + ".tmp")
+    try:
+        with open(temporary, "w", encoding="utf-8") as f:
+            yaml.dump(raw, f, default_flow_style=False, allow_unicode=True)
+        if os.name == "posix":
+            with suppress(OSError):
+                os.chmod(temporary, 0o600)
+        os.replace(temporary, CONFIG_FILE)
+    finally:
+        temporary.unlink(missing_ok=True)
 
 
 def set_config_value(key: str, value: str) -> None:
@@ -195,6 +216,10 @@ def set_config_value(key: str, value: str) -> None:
                 value = float(value)
             elif annotation is bool:
                 value = value.lower() in ("true", "1", "yes")
+            elif getattr(annotation, "__origin__", None) is Literal:
+                allowed = get_args(annotation)
+                if value not in allowed:
+                    raise ValueError(f"{key} must be one of: {', '.join(map(str, allowed))}")
             elif getattr(annotation, "__origin__", None) is list:
                 # Accept a list as-is, or split a comma/newline-separated string.
                 if isinstance(value, str):
@@ -320,6 +345,9 @@ def _overlay_env(config: VulnClawConfig) -> VulnClawConfig:
         config.session.auto_save = v.lower() in ("1", "true", "yes", "on")
     if v := os.environ.get("VULNCLAW_SESSION_REPORT_FORMAT"):
         config.session.report_format = v
+    if v := os.environ.get("VULNCLAW_SESSION_REPORT_TEMPLATE"):
+        if v in ("pentest", "executive", "ctf"):
+            config.session.report_template = v
     if v := os.environ.get("VULNCLAW_SESSION_MAX_ROUNDS"):
         with suppress(ValueError):
             config.session.max_rounds = int(v)

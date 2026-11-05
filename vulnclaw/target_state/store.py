@@ -66,6 +66,14 @@ def _target_dir(target: str) -> Path:
     return TARGETS_DIR / _target_key(target)
 
 
+def target_state_path(target: str) -> Path:
+    """Return the state file currently backing *target*, including legacy paths."""
+    for path in _candidate_state_paths(target):
+        if path is not None and path.exists():
+            return path
+    return _target_path(_target_model(target))
+
+
 def _legacy_target_dir(target: str) -> Path:
     ensure_dirs()
     return TARGETS_DIR / _legacy_target_key(target)
@@ -79,6 +87,67 @@ def _index_path(target: str | Target) -> Path:
     model = _target_model(target)
     ensure_dirs()
     return TARGETS_DIR / model.state_key / "index.json"
+
+
+def _targets_index_path() -> Path:
+    ensure_dirs()
+    return TARGETS_DIR / "index.json"
+
+
+def _index_entry(model: Target, session: SessionState, raw: dict[str, Any], runtime: Any | None) -> dict[str, Any]:
+    resume = raw.get("resume_meta", {})
+    return {
+        "target": session.target or model.raw,
+        "schema_version": int(raw.get("schema_version", TARGET_STATE_SCHEMA_VERSION)),
+        "phase": _phase_name(getattr(session, "phase", "")),
+        "findings_count": len(session.findings),
+        "verified_count": len(session.get_verified_findings()),
+        "pending_count": len(session.get_pending_findings()),
+        "candidate_count": len(session.get_candidate_findings())
+        if hasattr(session, "get_candidate_findings")
+        else 0,
+        "pending_verification_count": (
+            len(session.get_pending_verification_findings())
+            if hasattr(session, "get_pending_verification_findings")
+            else 0
+        ),
+        "manual_review_count": len(session.get_manual_review_findings())
+        if hasattr(session, "get_manual_review_findings")
+        else 0,
+        "resume_strategy": str(resume.get("resume_strategy", "")),
+        "resume_reason": str(resume.get("resume_strategy_reason", "")),
+        "constraints": session.task_constraints.model_dump(mode="json")
+        if hasattr(session, "task_constraints")
+        else {},
+        "constraint_violations": list(getattr(session, "constraint_violations", [])),
+        "constraint_violation_events": [
+            item.model_dump(mode="json") if hasattr(item, "model_dump") else item
+            for item in getattr(session, "constraint_violation_events", [])
+        ],
+        "tokens_input": int(getattr(runtime, "prompt_tokens", 0)) if runtime else 0,
+        "tokens_output": int(getattr(runtime, "completion_tokens", 0)) if runtime else 0,
+        "tokens_total": int(getattr(runtime, "total_tokens", 0)) if runtime else 0,
+        "llm_calls": int(getattr(runtime, "llm_calls", 0)) if runtime else 0,
+        "updated_at": str(resume.get("last_saved_at") or datetime.now().isoformat()),
+        "state_path": str(_target_path(model)),
+    }
+
+
+def _update_targets_index(model: Target, session: SessionState, raw: dict[str, Any], runtime: Any | None) -> None:
+    path = _targets_index_path()
+    entries: list[dict[str, Any]] = []
+    if path.exists():
+        try:
+            loaded = json.loads(path.read_text(encoding="utf-8"))
+            if isinstance(loaded, list):
+                entries = [item for item in loaded if isinstance(item, dict)]
+        except (OSError, json.JSONDecodeError):
+            entries = []
+    entry = _index_entry(model, session, raw, runtime)
+    entries = [item for item in entries if item.get("target") != entry["target"]]
+    entries.append(entry)
+    entries = entries[-1000:]
+    atomic_write_json(path, entries)
 
 
 def _snapshot_dir(target: str) -> Path:
@@ -277,6 +346,8 @@ def save_target_state(
     snapshots.mkdir(parents=True, exist_ok=True)
     atomic_write_json(path, raw)
     atomic_write_json(snapshots / f"{snapshot_id}.json", raw)
+    if update_index:
+        _update_targets_index(model, session, raw, runtime)
 
     if run_context is not None:
         atomic_write_json(run_context.target_json_path(model), model.to_manifest())

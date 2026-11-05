@@ -80,3 +80,7 @@ class RuntimeState:
     unverified_assumptions: list[str] = field(default_factory=list)
     is_ctf_mode: bool = False
     consecutive_errors: int = 0
+    llm_calls: int = 0
+    prompt_tokens: int = 0
+    completion_tokens: int = 0
+    total_tokens: int = 0

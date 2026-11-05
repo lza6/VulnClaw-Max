@@ -117,6 +117,30 @@ def request_has_valid_session(request) -> bool:  # type: ignore[no-untyped-def]
     return bool(cookie) and verify_token(cookie)
 
 
+def _host_is_allowed(request) -> bool:  # type: ignore[no-untyped-def]
+    """Reject DNS-rebinding Host headers while allowing local/IP access."""
+    host = request.headers.get("host", "")
+    hostname = host.rsplit(":", 1)[0].strip("[]").lower()
+    if not hostname:
+        return False
+    if hostname == "localhost" or hostname.endswith(".localhost"):
+        return True
+    try:
+        ipaddress.ip_address(hostname)
+        return True
+    except ValueError:
+        pass
+    configured = {
+        item.strip().lower()
+        for item in os.environ.get("VULNCLAW_WEB_ALLOWED_HOSTS", "").split(",")
+        if item.strip()
+    }
+    public = os.environ.get("VULNCLAW_WEB_PUBLIC_HOST", "").strip().lower()
+    if public:
+        configured.add(public)
+    return hostname in configured
+
+
 def _client_is_loopback(client_host: str | None) -> bool:
     """Whether a request originates from a loopback (local) client.
 
@@ -156,6 +180,10 @@ if _HAS_STARLETTE:
         async def dispatch(self, request: Request, call_next):  # type: ignore[override]
             path = request.url.path
             client_host = request.client.host if request.client else None
+            if _client_is_loopback(client_host) and not _host_is_allowed(request):
+                return JSONResponse(
+                    {"detail": "Invalid Host header"}, status_code=421
+                )
             if (
                 path.startswith("/api/")
                 and path not in self._EXEMPT_PATHS
