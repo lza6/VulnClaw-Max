@@ -49,7 +49,7 @@
 - **修复：选择项目导致任务创建 422** — `options.project` 被“命令无关选项”校验拦下，首页项目选择器一选项目就 422；`project` 现为跨命令字段。
 - **修复：目标子路由被通配路由遮蔽** — `{target:path}` 注册在 `/raw`、`/snapshots`、`/rollback` 之前，导致历史页的快照列表与差异对比恒为空；通配路由改为最后注册。
 - **插件样例包与清单界面** — 新增可安装的样例插件 `examples/plugins/vulnclaw-plugin-demo`（`Set-Cookie` 安全属性检测）；`/api/plugins` 汇总内置与 `vulnclaw.plugins` 入口点插件，单个坏入口点只记录为加载错误，不再整体失败；Web 新增插件页（阶段/来源筛选、搜索）。
-- **真实 E2E** — Playwright + 本地 mock LLM，覆盖首页任务、运行详情、发现处置、报告 SARIF 下载、stop 409 与终态 SSE，以及集成配置的保存/测试/删除、executive 模板报告生成、插件清单筛选、任务完成通知投递、投递历史、定时任务增删改、项目关联任务、历史快照（11 条用例）；CI 增加前端 E2E step。
+- **真实 E2E** — Playwright + 本地 mock LLM，覆盖首页任务、运行详情、发现处置、报告 SARIF 下载、stop 409 与终态 SSE，以及集成配置的保存/测试/删除、executive 模板报告生成、插件清单筛选、任务完成通知投递、投递历史、定时任务增删改、项目关联任务、历史快照（13 条用例）；CI 增加前端 E2E step。
 
 </details>
 

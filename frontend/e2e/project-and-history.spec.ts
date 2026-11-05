@@ -33,7 +33,8 @@ test("a project can be attached to a new task", async ({ page, request }) => {
   const tasks = (await (await request.get("/api/tasks")).json()) as Array<{
     options: { project?: string };
   }>;
-  expect(tasks[0].options.project).toBe(project.slug);
+  // Other specs in the suite create tasks too, so look the record up by project.
+  expect(tasks.some((task) => task.options.project === project.slug)).toBe(true);
   await page.screenshot({ path: "e2e-artifacts/home-project-task.png", fullPage: true });
 });
 

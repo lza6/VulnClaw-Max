@@ -685,7 +685,7 @@ Web 401 mock                                       -> failed / task_failed；SSE
 | 缺陷修复（本轮复审） | **已完成** | `options.project` 导致任务创建 422；`{target:path}` 遮蔽 `/raw`、`/snapshots` 使历史页快照与差异对比恒为空 |
 | P2-07/08/09/10/11/16 | 已完成 | 语言回落、lang/title、aria、焦点陷阱、reduced-motion、gc |
 | 目标索引第二阶段 | **已完成** | `index.json`，500 目标 0.012 s |
-| 真实 E2E | **已完成** | 11 条主链路通过（含集成配置、任务通知与投递历史、定时任务、executive 模板、插件清单、项目关联任务、历史快照）；CI 增加 e2e step |
+| 真实 E2E | **已完成** | 13 条主链路通过（含集成配置、任务通知与投递历史、定时任务、executive 模板、插件清单、项目关联任务、历史快照）；CI 增加 e2e step |
 
 ## 附录 A：本次实测原始输出
 
