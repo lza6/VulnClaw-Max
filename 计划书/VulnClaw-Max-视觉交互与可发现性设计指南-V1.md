@@ -72,7 +72,7 @@
 | D-05 | 间距/字号无刻度，12 种字号 + 8 种间距并存，视觉节奏不稳 | 计数 | P2 | **部分**：刻度令牌已定义并在新样式里使用；既有 507 条规则按页面回填是长尾，未一次性扫完 |
 | D-06 | 动效层空白：状态变化、列表加载、对话框、SSE 事件流全为瞬变 | 1 keyframe / 2 transition | P2 | **已修**：M-01～M-10 |
 | D-07 | 无 `description`/og/favicon/robots，静态资源缺品牌位 | `index.html`、`public/` | P2 | **已修** |
-| D-08 | 路由无 code split，页面代码与首屏同一 chunk | 103 modules 单产物 | P2 | **未做**：3D 场景已独立分包，页面级 `React.lazy` 未拆（首屏 144.67 kB 尚在预算内，拆页面要动 hash 路由的挂载语义，收益不抵风险） |
+| D-08 | 路由无 code split，页面代码与首屏同一 chunk | 103 modules 单产物 | P2 | **未做**：3D 场景已独立分包，页面级 `React.lazy` 未拆（首屏 144.53 kB 尚在预算内，拆页面要动 hash 路由的挂载语义，收益不抵风险） |
 | D-09 | 无公开落地页，产品对外只有 README | 仓库无 `site/` | P2 | **已修**：`site/` 三页 + sitemap/robots/结构化数据（上线待授权） |
 
 ### 1.3 两条需要纠正的常见预设
@@ -102,8 +102,8 @@
 
 | 指标 | 上限 | 实测（2026-11-05 收口） |
 |------|------|------|
-| 首屏 JS（gzip） | **150 kB** | **144.67 kB**（motion +33.7 kB，见 §5.1 取舍） |
-| 3D 懒加载 chunk（gzip） | 230 kB，且只在用户主动展开时请求 | **222.39 kB**，独立 chunk，不展开不请求 |
+| 首屏 JS（gzip） | **150 kB** | **144.53 kB**（motion +33.7 kB，见 §5.1 取舍） |
+| 3D 懒加载 chunk（gzip） | 230 kB，且只在用户主动展开时请求 | **220.79 kB**，独立 chunk，不展开不请求 |
 | 首屏 CSS（gzip） | 20 kB | **10.02 kB** |
 | 3D 帧率 | ≥ 50 fps（1440×900、DPR ≤ 1.5、节点 ≤ 60） | 未做长时采样，见 §12 剩余项 |
 | 布局抖动 | 新增动效不得触发 reflow（只用 `transform/opacity`，禁用 `width/height/top/left` 动画） | — |
@@ -268,8 +268,8 @@
 - 只用 `m` + `LazyMotion` + `domAnimation`；**不用** `domMax`（layout 投影更大），因此本阶段不做共享元素 FLIP 转场；需要时再升级并在本文件记录取舍。
 - `motion@14.9.1` 的 peerDependencies 为 `react ^18 || ^19`，与项目 React 18.3 兼容；不使用旧包名 `framer-motion`，避免双份适配层。
 - 安装后核对 `motion/react` 实际导出 `m` / `LazyMotion` / `domAnimation` / `MotionConfig` / `useReducedMotion`（API 改动时以导出清单为准）。
-- 体积以 `vite build` 输出为准：实测首屏 gzip 由 109.11 kB 增至 **144.67 kB（+35.6 kB）**，超过初版估算的 20 kB。原因：`m` + `LazyMotion(domAnimation)` + `AnimatePresence` 的实测量级就在 33–36 kB，`motion/react-m` 的极简入口在本版本没有可用类型声明（`TS2305`），强行引用只会把构建搞脆。
-- 取舍：接受 144.67 kB，把首屏上限从 130 kB 修订到 150 kB。为此把 `CountUp` 从 `motion` 的命令式 `animate` 改为原生 rAF 自绘（省掉约 6 kB，也让数字滚动不占 motion 特性包）。
+- 体积以 `vite build` 输出为准：实测首屏 gzip 由 109.11 kB 增至 **144.53 kB（+35.6 kB）**，超过初版估算的 20 kB。原因：`m` + `LazyMotion(domAnimation)` + `AnimatePresence` 的实测量级就在 33–36 kB，`motion/react-m` 的极简入口在本版本没有可用类型声明（`TS2305`），强行引用只会把构建搞脆。
+- 取舍：接受 144.53 kB，把首屏上限从 130 kB 修订到 150 kB。为此把 `CountUp` 从 `motion` 的命令式 `animate` 改为原生 rAF 自绘（省掉约 6 kB，也让数字滚动不占 motion 特性包）。
 
 ### 5.2 时长与缓动令牌
 
@@ -363,7 +363,7 @@ three 固定在 0.170.0，不跟最新的 0.187.0。
 - **不引 drei**：原计划用 `OrbitControls` + `Line`，实测加载 drei 后 3D chunk 为 232.5 kB gzip（超 230 预算），且 drei 会带进 `three-stdlib`、`@react-spring/three` 等 70 余个包。改为：
   - 旋转：在 `<group>` 上接 `onPointerDown/Move/Up`，直接改 `group.rotation` 后 `invalidate()`，无阻尼、无惯性、无滚轮缩放（滚轮缩放会抢页面滚动）。
   - 连线：所有边合并进一个 `BufferGeometry`（`lineSegments`），一次 draw call，取代每根线一个材质。
-  结果：3D chunk 降到 **222.39 kB gzip**，依赖只有 `three` + `@react-three/fiber` + `@types/three`（dev）。
+  结果：3D chunk 降到 **220.79 kB gzip**，依赖只有 `three` + `@react-three/fiber` + `@types/three`（dev）。
 
 ### 6.3 技术约束
 
@@ -554,7 +554,7 @@ site/
 | A2 | 两主题对比度 | 附录 A.4 脚本对全部语义令牌跑两遍 | 正文 ≥4.5:1，非文本 ≥3:1 | **通过**（所有取值见 §3.2，最低 4.53:1） |
 | A3 | 令牌覆盖率 | `grep` 统计 | 新增规则 `#hex` = 0；主题角色色全部走令牌 | **通过**：`var(--)` 120→365 处，`#hex` 唯一值 154→37；剩余 37 个全是图表分类色、固定深底面板的高亮文字、白字常量，无主题角色 |
 | B1 | 无布局回归 | 8 页 × 2 主题截图（`e2e-artifacts/theme-*.png`） | 差异仅限色调/层次 | **通过**：逐页目视，布局与信息层级未变 |
-| C1 | 首屏体积 | `npm run build` | gzip ≤150 kB | **通过**：144.67 kB |
+| C1 | 首屏体积 | `npm run build` | gzip ≤150 kB | **通过**：144.53 kB |
 | C2 | 动效时长 | 实现侧最高 420 ms（首页两栏），其余 ≤260 ms；`pulse-panel` 由 infinite 改 3 次 | 长驻循环 = 0 | **通过** |
 | C3 | reduced-motion | `e2e/motion.spec.ts`（`reducedMotion:'reduce'`）跑主链路 + 弹窗 | 全绿、无残留动效 | **通过** |
 | D1 | 3D 降级 | `e2e/attack-surface.spec.ts`：注入 `getContext('webgl*') → null` | 表格视图正常、无 canvas | **通过** |
@@ -660,8 +660,8 @@ site/
 ```
 cd frontend && npm run build
   index.css  49.61 kB │ gzip 10.02 kB
-  index.js  479.86 kB │ gzip 144.67 kB
-  AttackSurfaceScene.js 825.43 kB │ gzip 222.39 kB   ← 独立 chunk，不展开不请求
+  index.js  479.52 kB │ gzip 144.53 kB
+  AttackSurfaceScene.js 821.15 kB │ gzip 220.79 kB   ← 独立 chunk，不展开不请求
 
 cd frontend && npm run test            -> 4 files / 11 tests passed
 cd frontend && npx playwright test     -> 22 passed (48.2 s)
@@ -679,8 +679,8 @@ axe-core 在这轮里查出三处真实对比度问题并已修复：品牌区�
 
 | 计划 | 实际 | 原因 |
 |------|------|------|
-| 首屏 JS ≤130 kB | 144.67 kB，上限修订为 150 kB | motion 实测 +35.6 kB；`motion/react-m` 极简入口在本版本缺类型声明 |
-| 3D chunk ≤230 kB | 222.39 kB | 去掉 drei，改自绘旋转 + 单 geometry 连线 |
+| 首屏 JS ≤130 kB | 144.53 kB，上限修订为 150 kB | motion 实测 +35.6 kB；`motion/react-m` 极简入口在本版本缺类型声明 |
+| 3D chunk ≤230 kB | 220.79 kB | 去掉 drei，改自绘旋转 + 单 geometry 连线 |
 | M-02 首页"卡片 stagger 最多 8 条" | 首页两栏 60 ms 交错 | 首页结构是两栏操作台而非卡片列表，逐字段 stagger 会把表单拆成 8 个动效节点，收益低于风险 |
 | M-04 事件行"背景高亮衰减 600 ms" | CSS 淡入 + 上移 180 ms | 高亮衰减需要额外状态位跟踪"哪一行是新的"，为一个装饰效果引入状态不值 |
 | M-07 用 `useMotionValue` 插值 | 原生 rAF 自绘 | 命令式 `animate()` 会把 motion 的特性包拉进首屏 |
