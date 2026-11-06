@@ -5,7 +5,10 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-import tomllib
+try:  # tomllib 是 3.11 才进标准库，项目声明支持 3.10
+    import tomllib
+except ModuleNotFoundError:  # pragma: no cover - 仅在 3.10 上走到
+    import tomli as tomllib
 
 import vulnclaw
 import vulnclaw.web
