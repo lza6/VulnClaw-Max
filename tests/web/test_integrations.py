@@ -284,6 +284,40 @@ def test_delivery_history_records_and_retries_failures(monkeypatch, tmp_path):
     assert service.retry_last_failed_delivery("hook") is None
 
 
+def test_delivery_history_breaks_timestamp_ties_by_insertion_order(monkeypatch, tmp_path):
+    """同一 tick 内的两次投递会拿到完全相同的 at，先后仍必须确定。
+
+    Windows 上 datetime.now() 的精度在 15.6 ms 量级，重投与首发很容易落在同一 tick：
+    只按 at 排序时，sorted(reverse=True) 在相等键上保持原序，旧的失败记录会排到最前面。
+    """
+    service = _service(monkeypatch, tmp_path)
+
+    def record(status_code: int, ok: bool) -> None:
+        service._record_deliveries(
+            [
+                {
+                    "at": "2026-01-01T00:00:00+00:00",
+                    "name": "hook",
+                    "kind": "run",
+                    "event": "run.completed",
+                    "target": "t",
+                    "ok": ok,
+                    "attempts": 1,
+                    "status_code": status_code,
+                    "error": "" if ok else "HTTP 503",
+                    "items": 0,
+                    "retry_payload": None,
+                }
+            ]
+        )
+
+    record(503, False)
+    record(200, True)
+
+    history = service.list_deliveries("hook")
+    assert [item.status_code for item in history] == [200, 503]
+
+
 def test_delivery_history_is_bounded_and_isolated_per_integration(monkeypatch, tmp_path):
     from vulnclaw.integrations.dispatch import DeliveryResult
 

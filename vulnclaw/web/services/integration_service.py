@@ -190,8 +190,10 @@ def list_deliveries(name: str | None = None, limit: int = 50) -> list[Integratio
         )
         for item in entries
     ]
-    views.sort(key=lambda item: item.at, reverse=True)
-    return views[: max(1, limit)]
+    # 同一时间戳时按写入顺序定序（后写的更新）：Windows 的 now() 精度在 15.6 ms 量级，
+    # 两次投递落在同一个 tick 里会得到完全相同的 at，只按 at 排序时先后不确定。
+    indexed = sorted(enumerate(views), key=lambda pair: (pair[1].at, pair[0]), reverse=True)
+    return [view for _, view in indexed][: max(1, limit)]
 
 
 # ── Delivery ─────────────────────────────────────────────────────────
