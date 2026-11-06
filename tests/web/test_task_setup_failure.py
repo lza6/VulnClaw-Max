@@ -39,10 +39,16 @@ async def test_setup_failure_marks_task_failed(monkeypatch):
     )
 
     record = manager.get_task(task_id)
+    # 落终态与从 _running 摘除是两步：只看终态会在清理完成前就断言，
+    # 平台调度一慢就假失败。这里等两件事都成立，下面的断言一条不减。
     for _ in range(100):
         await asyncio.sleep(0.01)
         record = manager.get_task(task_id)
-        if record is not None and record.status in {"failed", "completed", "stopped"}:
+        if (
+            record is not None
+            and record.status in {"failed", "completed", "stopped"}
+            and task_id not in manager._running
+        ):
             break
 
     assert record is not None

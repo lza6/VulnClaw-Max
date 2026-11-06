@@ -96,14 +96,24 @@ def test_run_tui_once_and_binary(monkeypatch, capsys):
 
 
 def test_clipboard_read(monkeypatch):
+    """两个平台读同一段文本，但 stdout 的编码方式不同。
+
+    win32 分支要求 base64（避免控制台代码页），Unix 分支读的是原始文本，
+    所以夹具必须按平台构造，否则断言平台分支而不是被测行为。
+    """
     import base64
+    import sys
+
+    payload = "hello"
 
     class Completed:
         returncode = 0
-        stdout = base64.b64encode("hello".encode())
+        stdout = (
+            base64.b64encode(payload.encode()) if sys.platform == "win32" else payload.encode()
+        )
 
     monkeypatch.setattr(tui.subprocess, "run", lambda *_a, **_k: Completed())
-    assert tui._read_system_clipboard() in {"hello", None}
+    assert tui._read_system_clipboard() in {payload, None}
 
 
 def test_run_pt_tui_builds_and_runs(monkeypatch):
