@@ -1,6 +1,9 @@
 import type { ReactNode } from "react";
+import { m } from "motion/react";
 import type { TaskEvent, TaskRecord } from "../types/api";
 import { useT } from "../i18n";
+import { DURATION } from "../motion/tokens";
+import { useMotionPrefs } from "../motion/useMotionPrefs";
 import { ActiveTaskBanner } from "./ActiveTaskBanner";
 import { Sidebar, type NavItem } from "./Sidebar";
 import { Topbar } from "./Topbar";
@@ -64,6 +67,7 @@ export function AppShell<T extends string>({
   children,
 }: AppShellProps<T>) {
   const { t } = useT();
+  const { reduce, seconds, ease } = useMotionPrefs();
 
   return (
     <div className="app-shell">
@@ -107,7 +111,15 @@ export function AppShell<T extends string>({
           onOpenTarget={onOpenTarget}
           onStop={onStopTask}
         />
-        <div className="view-mount">{children}</div>
+        <m.div
+          key={String(activeView)}
+          className="view-mount"
+          initial={reduce ? false : { opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: seconds(DURATION.base), ease }}
+        >
+          {children}
+        </m.div>
       </main>
       <aside className="quick-rail" aria-label={t("shell.quick_actions")}>
         <div className="quick-rail-main">

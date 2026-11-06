@@ -1,0 +1,197 @@
+/* ────────────────────────────────────────────────────────────────
+   设计令牌：原语 → 语义 → 双主题
+   - 原语（--c-*）只在语义层被引用，规则文件不直接使用
+   - 语义层沿用具名（--bg/--surface/--text/--muted/--primary/...），
+     styles.css 只引用这一层
+   - 深色主题只有一处定义：[data-theme="dark"]。主题解析由
+     index.html 的引导脚本 + utils/theme.ts 写入 data-theme，
+     不使用 prefers-color-scheme 媒体查询，避免同一套令牌写两遍
+   ──────────────────────────────────────────────────────────────── */
+
+:root {
+  /* ── 原语：中性阶 ─────────────────────────────── */
+  --c-ink-1000: #0b1220;
+  --c-ink-950: #0e1728;
+  --c-ink-900: #101a2f;
+  --c-ink-800: #111b2f;
+  --c-ink-700: #16233b;
+  --c-ink-600: #1e2f4d;
+  --c-ink-400: #2f4560;
+
+  --c-slate-800: #1b2f4d;
+  --c-slate-700: #243f65;
+  --c-slate-600: #315984;
+  --c-slate-500: #5a7295;
+  --c-slate-400: #7d91b3;
+  --c-slate-300: #7b90b0;
+  --c-slate-200: #a9bad2;
+  --c-slate-100: #edf4fb;
+
+  --c-white: #ffffff;
+  --c-paper: #f4f8fe;
+  --c-paper-soft: #eef4fc;
+  --c-paper-strong: #f8fbff;
+
+  /* ── 原语：品牌蓝 ─────────────────────────────── */
+  --c-blue-700: #2456a8;
+  --c-blue-600: #2f68c9;
+  --c-blue-500: #3f74c4;
+  --c-blue-400: #6aa3ff;
+  --c-blue-300: #9dc2ff;
+  --c-blue-200: #dfeaff;
+  --c-blue-100: #dce8f7;
+
+  /* ── 原语：语义色 ─────────────────────────────── */
+  --c-green-700: #0d7f5e;
+  --c-green-500: #16c784;
+  --c-green-400: #3ddc9b;
+  --c-amber-700: #8a5a00;
+  --c-amber-500: #f5b94b;
+  --c-amber-400: #f7c86a;
+  --c-red-700: #c0392b;
+  --c-red-500: #ff6b6b;
+  --c-red-400: #ff8b82;
+
+  /* ── 语义层（浅色，默认） ─────────────────────── */
+  color-scheme: light;
+
+  --bg: var(--c-paper);
+  --bg-soft: var(--c-paper-soft);
+  --surface: var(--c-white);
+  --surface-strong: var(--c-paper-strong);
+  --surface-muted: var(--c-slate-100);
+
+  --line: rgba(112, 145, 189, 0.22);
+  --line-strong: rgba(47, 104, 201, 0.36);
+  --line-rgb: 112, 145, 189;
+
+  --text: var(--c-slate-800);
+  --text-rgb: 27, 47, 77;
+  --muted: var(--c-slate-500);
+  --soft: var(--c-slate-300);
+  --surface-rgb: 255, 255, 255;
+
+  --primary: var(--c-blue-600);
+  --primary-strong: var(--c-blue-700);
+  --primary-soft: rgba(47, 104, 201, 0.14);
+  --primary-tint: var(--c-blue-200);
+  --accent-rgb: 47, 104, 201;
+
+  /* 品牌面（侧栏、选中态底色）与品牌墨色（浅底上的品牌文字） */
+  --brand: var(--c-blue-500);
+  --brand-ink: var(--c-blue-600);
+  --track: var(--c-blue-100);
+
+  --safe: var(--c-green-700);
+  --safe-text: var(--c-green-700);
+  --safe-rgb: 13, 127, 94;
+  --warn: var(--c-amber-700);
+  --warn-text: var(--c-amber-700);
+  --warn-rgb: 245, 185, 75;
+  --danger: var(--c-red-700);
+  --danger-text: var(--c-red-700);
+  --danger-rgb: 255, 102, 92;
+  --scrim-rgb: 9, 15, 29;
+
+  /* 终端、日志等固定深底面板的前景色：两套主题下都是深底，故为常量 */
+  --on-dark-text: #d7e7ff;
+  --on-dark-muted: #9db0cc;
+
+  --frost-bg: rgba(255, 255, 255, 0.82);
+  --frost-line: rgba(112, 145, 189, 0.26);
+
+  --shadow: 0 12px 26px rgba(72, 111, 166, 0.12);
+  --shadow-soft: 0 8px 18px rgba(72, 111, 166, 0.1);
+  --shadow-2: 0 24px 60px rgba(36, 63, 101, 0.18);
+  --inset-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.7);
+
+  /* ── 尺度 ─────────────────────────────────────── */
+  --space-1: 2px;
+  --space-2: 4px;
+  --space-3: 8px;
+  --space-4: 12px;
+  --space-5: 16px;
+  --space-6: 24px;
+  --space-7: 32px;
+  --space-8: 48px;
+
+  --text-xs: 11px;
+  --text-sm: 12px;
+  --text-body: 13px;
+  --text-md: 14px;
+  --text-lg: 16px;
+  --text-xl: 20px;
+  --text-2xl: 24px;
+  --text-display: 34px;
+
+  --leading-body: 1.55;
+  --leading-tight: 1.35;
+
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-pill: 999px;
+
+  --sidebar-width: 78px;
+  --quick-rail-width: 48px;
+
+  /* ── 动效（CSS 侧；JS 侧同值见 src/motion/tokens.ts） ── */
+  --dur-1: 120ms;
+  --dur-2: 180ms;
+  --dur-3: 260ms;
+  --dur-4: 420ms;
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --ease-exit: cubic-bezier(0.4, 0, 1, 1);
+
+  font-family: Inter, "Segoe UI", "Noto Sans SC", "Microsoft YaHei", sans-serif;
+}
+
+/* ── 语义层（深色） ─────────────────────────────── */
+[data-theme="dark"] {
+  color-scheme: dark;
+
+  --bg: var(--c-ink-1000);
+  --bg-soft: var(--c-ink-900);
+  --surface: var(--c-ink-800);
+  --surface-strong: var(--c-ink-700);
+  --surface-muted: var(--c-ink-950);
+
+  --line: rgba(148, 163, 184, 0.16);
+  --line-strong: rgba(106, 163, 255, 0.32);
+  --line-rgb: 148, 163, 184;
+
+  --text: #e6eefc;
+  --text-rgb: 230, 238, 252;
+  --muted: var(--c-slate-200);
+  --soft: #8296b5;
+  --surface-rgb: 22, 35, 59;
+
+  --primary: var(--c-blue-400);
+  --primary-strong: #2f6df6;
+  --primary-soft: rgba(106, 163, 255, 0.16);
+  --primary-tint: var(--c-ink-700);
+  --accent-rgb: 106, 163, 255;
+
+  --brand: #2f6df6;
+  --brand-ink: var(--c-blue-400);
+  --track: var(--c-ink-600);
+
+  --safe: var(--c-green-400);
+  --safe-text: var(--c-green-400);
+  --safe-rgb: 61, 220, 155;
+  --warn: var(--c-amber-400);
+  --warn-text: var(--c-amber-400);
+  --warn-rgb: 247, 200, 106;
+  --danger: var(--c-red-500);
+  --danger-text: var(--c-red-400);
+  --danger-rgb: 255, 107, 107;
+  --scrim-rgb: 2, 6, 15;
+
+  --frost-bg: rgba(22, 35, 59, 0.78);
+  --frost-line: rgba(148, 163, 184, 0.2);
+
+  --shadow: 0 12px 30px rgba(2, 8, 23, 0.55);
+  --shadow-soft: 0 8px 18px rgba(2, 8, 23, 0.42);
+  --shadow-2: 0 28px 70px rgba(2, 8, 23, 0.62);
+  --inset-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}

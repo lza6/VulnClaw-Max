@@ -1,4 +1,7 @@
+import { AnimatePresence, m } from "motion/react";
 import { useT } from "../i18n";
+import { DURATION } from "../motion/tokens";
+import { useMotionPrefs } from "../motion/useMotionPrefs";
 
 export type ToastTone = "success" | "error" | "info";
 
@@ -18,12 +21,20 @@ interface ToastHostProps {
 
 export function ToastHost({ toasts, onDismiss }: ToastHostProps) {
   const { t } = useT();
-  if (!toasts.length) return null;
+  const { reduce, seconds, ease } = useMotionPrefs();
 
   return (
     <div className="toast-host" aria-live="polite" aria-relevant="additions removals">
-      {toasts.map((toast) => (
-        <article key={toast.id} className={`toast toast-${toast.tone}`}>
+      <AnimatePresence initial={false}>
+        {toasts.map((toast) => (
+        <m.article
+          key={toast.id}
+          className={`toast toast-${toast.tone}`}
+          initial={reduce ? false : { opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={reduce ? undefined : { opacity: 0, y: 8 }}
+          transition={{ duration: seconds(DURATION.fast), ease }}
+        >
           <div>
             <strong>{toast.title}</strong>
             {toast.copy && <p>{toast.copy}</p>}
@@ -43,8 +54,9 @@ export function ToastHost({ toasts, onDismiss }: ToastHostProps) {
           <button type="button" className="toast-close-btn" aria-label={t("dialog.close")} onClick={() => onDismiss(toast.id)}>
             x
           </button>
-        </article>
-      ))}
+        </m.article>
+        ))}
+      </AnimatePresence>
     </div>
   );
 }

@@ -10,16 +10,16 @@ import { PluginsPage } from "./pages/PluginsPage";
 import { ReportsPage } from "./pages/ReportsPage";
 import { RiskResultsPage } from "./pages/RiskResultsPage";
 import { SafetyBoundaryPage } from "./pages/SafetyBoundaryPage";
-import { SettingsPage } from "./pages/SettingsPage";
+import { SettingsPage, type SettingsSection } from "./pages/SettingsPage";
 import { TaskConsolePage } from "./pages/TaskConsolePage";
 import { createTask, getTasks, openTaskStream, stopTask } from "./api/web";
 import { useConfigQuery } from "./hooks/queries";
 import { useT, type TFunction } from "./i18n";
 import type { TaskCommand, TaskEvent, TaskOptions, TaskRecord, TaskSummary } from "./types/api";
 import { formatTaskTitle } from "./utils/taskLabels";
+import { useThemeMode } from "./utils/theme";
 
 type AppView = "home" | "risk" | "reports" | "boundary" | "history" | "plugins" | "settings" | "advanced";
-type SettingsSection = "basic" | "ai" | "checks" | "boundary" | "data" | "integrations" | "schedules" | "python" | "diagnostics";
 
 interface ReportFocus {
   target: string | null;
@@ -93,6 +93,7 @@ function viewHash(view: AppView): string {
 }
 
 export function App() {
+  useThemeMode();
   const configQuery = useConfigQuery();
   const queryClient = useQueryClient();
   const { t } = useT();

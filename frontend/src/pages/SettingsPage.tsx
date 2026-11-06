@@ -7,14 +7,25 @@ import { SectionCard } from "../components/SectionCard";
 import { useConfigQuery, useMcpDiagnosticsQuery, useProvidersQuery } from "../hooks/queries";
 import { useT, type TFunction } from "../i18n";
 import { formatActionLabel, formatActionList, formatMcpExecutionMode, formatMcpHealth } from "../utils/taskLabels";
-import { loadUiPreferences, saveUiPreferences, type UiPreferences } from "../utils/preferences";
+import { loadUiPreferences, saveUiPreferences, type ThemePreference, type UiPreferences } from "../utils/preferences";
 import { parseOptionalPort } from "../utils/validation";
 
-type SettingsSection = "basic" | "ai" | "checks" | "boundary" | "data" | "integrations" | "schedules" | "python" | "diagnostics";
+export type SettingsSection =
+  | "basic"
+  | "appearance"
+  | "ai"
+  | "checks"
+  | "boundary"
+  | "data"
+  | "integrations"
+  | "schedules"
+  | "python"
+  | "diagnostics";
 
 function buildSections(t: TFunction): Array<{ key: SettingsSection; title: string; copy: string }> {
   return [
     { key: "basic", title: t("settings.preferences"), copy: t("settings.preferences_copy") },
+    { key: "appearance", title: t("settings.appearance"), copy: t("settings.appearance_copy") },
     { key: "ai", title: t("settings.model"), copy: t("settings.model_copy") },
     { key: "checks", title: t("settings.scan_policy"), copy: t("settings.scan_policy_copy") },
     { key: "boundary", title: t("settings.boundary"), copy: t("settings.boundary_copy") },
@@ -88,6 +99,7 @@ export function SettingsPage({ initialSection = "basic", onOpenAdvanced }: Setti
   const [reportTemplate, setReportTemplate] = useState<UiPreferences["reportTemplate"]>("pentest");
   const [configReportTemplate, setConfigReportTemplate] = useState<ConfigView["report_template"]>("pentest");
   const [showTechnicalLogs, setShowTechnicalLogs] = useState(false);
+  const [theme, setTheme] = useState<ThemePreference>("auto");
   const [defaultOnlyPort, setDefaultOnlyPort] = useState("");
   const [defaultOnlyHost, setDefaultOnlyHost] = useState("");
   const [defaultOnlyPath, setDefaultOnlyPath] = useState("");
@@ -106,6 +118,7 @@ export function SettingsPage({ initialSection = "basic", onOpenAdvanced }: Setti
     setReportFormat(preferences.reportFormat);
     setReportTemplate(preferences.reportTemplate);
     setShowTechnicalLogs(preferences.showTechnicalLogs);
+    setTheme(preferences.theme);
     setDefaultOnlyPort(preferences.defaultBoundary.onlyPort);
     setDefaultOnlyHost(preferences.defaultBoundary.onlyHost);
     setDefaultOnlyPath(preferences.defaultBoundary.onlyPath);
@@ -144,7 +157,7 @@ export function SettingsPage({ initialSection = "basic", onOpenAdvanced }: Setti
   }, [configQuery.data]);
 
   const activeMeta = useMemo(() => SECTIONS.find((section) => section.key === activeSection) ?? SECTIONS[0], [activeSection]);
-  const saveButtonLabel = activeSection === "basic"
+  const saveButtonLabel = activeSection === "basic" || activeSection === "appearance"
     ? t("settings.save_preferences")
     : activeSection === "boundary"
       ? t("settings.save_boundary")
@@ -191,6 +204,12 @@ export function SettingsPage({ initialSection = "basic", onOpenAdvanced }: Setti
     }
   }
 
+  /** 外观改动即时生效并落盘：主题是"看一眼就决定"的偏好，等保存按钮反而多余。 */
+  function onThemeChange(next: ThemePreference) {
+    setTheme(next);
+    saveUiPreferences({ ...loadUiPreferences(), theme: next });
+  }
+
   function saveLocalPreferences() {
     saveUiPreferences({
       language,
@@ -198,6 +217,7 @@ export function SettingsPage({ initialSection = "basic", onOpenAdvanced }: Setti
       reportFormat,
       reportTemplate,
       showTechnicalLogs,
+      theme,
       defaultBoundary: {
         onlyPort: defaultOnlyPort,
         onlyHost: defaultOnlyHost,
@@ -216,10 +236,16 @@ export function SettingsPage({ initialSection = "basic", onOpenAdvanced }: Setti
       setError(null);
       setStatus(null);
 
-      if (activeSection === "basic" || activeSection === "boundary") {
+      if (activeSection === "basic" || activeSection === "appearance" || activeSection === "boundary") {
         if (activeSection === "boundary") parseOptionalPort(defaultOnlyPort);
         saveLocalPreferences();
-        setStatus(activeSection === "boundary" ? t("settings.boundary_saved") : t("settings.preferences_saved"));
+        setStatus(
+          activeSection === "boundary"
+            ? t("settings.boundary_saved")
+            : activeSection === "appearance"
+              ? t("settings.appearance_saved")
+              : t("settings.preferences_saved"),
+        );
         return;
       }
 
@@ -335,6 +361,27 @@ export function SettingsPage({ initialSection = "basic", onOpenAdvanced }: Setti
               <div className="inline-panel field-wide">
                 <strong>{t("settings.local_only")}</strong>
                 <p className="inline-note">{t("settings.local_only_note")}</p>
+              </div>
+            </div>
+          )}
+
+          {activeSection === "appearance" && (
+            <div className="form-grid">
+              <label className="field">
+                <span>{t("settings.theme")}</span>
+                <select
+                  value={theme}
+                  onChange={(event) => onThemeChange(event.target.value as ThemePreference)}
+                >
+                  <option value="auto">{t("settings.theme_auto")}</option>
+                  <option value="light">{t("settings.theme_light")}</option>
+                  <option value="dark">{t("settings.theme_dark")}</option>
+                </select>
+                <small>{t("settings.theme_hint")}</small>
+              </label>
+              <div className="inline-panel field-wide">
+                <strong>{t("settings.theme_contrast_title")}</strong>
+                <p className="inline-note">{t("settings.theme_contrast_note")}</p>
               </div>
             </div>
           )}

@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { generateTargetReport, triageFinding } from "../api/web";
+import { AttackSurfacePanel } from "../components/AttackSurfacePanel";
+import { CountUp } from "../components/CountUp";
 import { SectionCard } from "../components/SectionCard";
 import { useFindingsQuery, useTargetPreviewQuery, useTargetQuery, useTargetsQuery } from "../hooks/queries";
 import { useT, type TFunction } from "../i18n";
@@ -257,21 +259,33 @@ export function RiskResultsPage({ selectedTarget, onSelectTarget, onOpenHome, on
             <div className="stats-grid goby-metric-grid">
               <article className="stat goby-metric-card">
                 <span className="stat-label">{t("risk.asset")}</span>
-                <strong>{Math.max(1, targetsQuery.data?.length ?? 0)}</strong>
+                <strong><CountUp value={Math.max(1, targetsQuery.data?.length ?? 0)} /></strong>
               </article>
               <article className="stat goby-metric-card">
                 <span className="stat-label">{t("risk.active_ip")}</span>
-                <strong>{targetValue ? 1 : 0}</strong>
+                <strong><CountUp value={targetValue ? 1 : 0} /></strong>
               </article>
               <article className="stat goby-metric-card">
                 <span className="stat-label">{t("risk.port")}</span>
-                <strong>{portSignals.length || target.pending_count}</strong>
+                <strong><CountUp value={portSignals.length || target.pending_count} /></strong>
               </article>
               <article className="stat goby-metric-card">
                 <span className="stat-label">{t("risk.vulnerability")}</span>
-                <strong>{target.verified_count + target.pending_count}</strong>
+                <strong><CountUp value={target.verified_count + target.pending_count} /></strong>
               </article>
             </div>
+
+            <AttackSurfacePanel
+              target={targetValue ?? ""}
+              items={findings.map((item) => ({
+                id: item.id,
+                label: item.title,
+                severity: item.severity,
+                type: item.type,
+                status: item.status,
+              }))}
+            />
+
 
             <div className="goby-intel-grid">
               <article className="goby-intel-card">

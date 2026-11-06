@@ -1,11 +1,14 @@
 export type ReportTemplate = "pentest" | "executive" | "ctf";
 
+export type ThemePreference = "auto" | "light" | "dark";
+
 export interface UiPreferences {
   language: "zh-CN" | "en-US";
   defaultCheckMode: "quick" | "standard" | "deep" | "continuous";
   reportFormat: "markdown" | "html";
   reportTemplate: ReportTemplate;
   showTechnicalLogs: boolean;
+  theme: ThemePreference;
   defaultBoundary: BoundaryDefaults;
 }
 
@@ -44,6 +47,7 @@ export const DEFAULT_UI_PREFERENCES: UiPreferences = {
   reportFormat: "markdown",
   reportTemplate: "pentest",
   showTechnicalLogs: false,
+  theme: "auto",
   defaultBoundary: {
     onlyPort: "",
     onlyHost: "",
@@ -66,6 +70,7 @@ export function loadUiPreferences(): UiPreferences {
       reportFormat: parsed.reportFormat === "html" ? "html" : "markdown",
       reportTemplate: isReportTemplate(parsed.reportTemplate) ? parsed.reportTemplate : "pentest",
       showTechnicalLogs: Boolean(parsed.showTechnicalLogs),
+      theme: isThemePreference(parsed.theme) ? parsed.theme : DEFAULT_UI_PREFERENCES.theme,
       defaultBoundary: normalizeBoundaryDefaults(parsed.defaultBoundary),
     };
   } catch {
@@ -102,6 +107,10 @@ function isReportTemplate(value: unknown): value is UiPreferences["reportTemplat
 
 function isCheckMode(value: unknown): value is UiPreferences["defaultCheckMode"] {
   return value === "quick" || value === "standard" || value === "deep" || value === "continuous";
+}
+
+function isThemePreference(value: unknown): value is ThemePreference {
+  return value === "auto" || value === "light" || value === "dark";
 }
 
 function normalizeBoundaryDefaults(value: unknown): BoundaryDefaults {

@@ -1,3 +1,6 @@
+import { AnimatePresence, m } from "motion/react";
+import { DURATION } from "../motion/tokens";
+import { useMotionPrefs } from "../motion/useMotionPrefs";
 import { useT } from "../i18n";
 import { useDialogFocus } from "../hooks/useDialogFocus";
 
@@ -21,13 +24,33 @@ interface ReportPreviewProps {
 
 export function ReportPreviewDialog({ open, title, path, content, kind, loading, onDownload, onClose }: ReportPreviewDialogProps) {
   const { t } = useT();
+  const { reduce, seconds, ease, exitEase } = useMotionPrefs();
   const dialogRef = useDialogFocus<HTMLElement>(open, onClose);
 
-  if (!open) return null;
-
   return (
-    <div className="dialog-backdrop" role="presentation" onMouseDown={onClose}>
-      <section ref={dialogRef} className="report-dialog" role="dialog" aria-modal="true" aria-labelledby="report-preview-title" onMouseDown={(event) => event.stopPropagation()}>
+    <AnimatePresence>
+      {open && (
+    <m.div
+      className="dialog-backdrop"
+      role="presentation"
+      initial={reduce ? false : { opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={reduce ? undefined : { opacity: 0 }}
+      transition={{ duration: seconds(DURATION.fast), ease }}
+      onMouseDown={onClose}
+    >
+      <m.section
+        ref={dialogRef}
+        className="report-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="report-preview-title"
+        initial={reduce ? false : { opacity: 0, scale: 0.98 }}
+        animate={{ opacity: 1, scale: 1 }}
+        exit={reduce ? undefined : { opacity: 0, scale: 0.98 }}
+        transition={{ duration: seconds(DURATION.fast), ease: exitEase }}
+        onMouseDown={(event) => event.stopPropagation()}
+      >
         <header className="report-dialog-header">
           <div>
             <span className="dialog-kicker">{t("dialog.report_preview")}</span>
@@ -44,8 +67,10 @@ export function ReportPreviewDialog({ open, title, path, content, kind, loading,
           </div>
         </header>
         <ReportPreview content={content} kind={kind} loading={loading} expanded />
-      </section>
-    </div>
+      </m.section>
+    </m.div>
+      )}
+    </AnimatePresence>
   );
 }
 

@@ -1,4 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
+import { m } from "motion/react";
+import { DURATION } from "../motion/tokens";
+import { useMotionPrefs } from "../motion/useMotionPrefs";
 import type { TaskCommand, TaskEvent, TaskOptions, TaskRecord, TaskSummary } from "../types/api";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { SectionCard } from "../components/SectionCard";
@@ -123,6 +126,7 @@ function uniqueActions(actions: Array<string | undefined>): string[] {
 
 export function HomePage({ selectedTarget, activeTask, latestEvent, taskEvents, onCreateTask, onOpenRisk, onOpenReports, onOpenBoundary }: HomePageProps) {
   const { t } = useT();
+  const { reduce: reduceMotion, seconds, ease } = useMotionPrefs();
   const projectsQuery = useProjectsQuery();
   const preferences = loadUiPreferences();
   const MODES = useMemo(() => buildModes(t), [t]);
@@ -259,7 +263,12 @@ export function HomePage({ selectedTarget, activeTask, latestEvent, taskEvents, 
   return (
     <section className="home-page">
       <div className="goby-home-board">
-        <div className="goby-welcome-panel">
+        <m.div
+          className="goby-welcome-panel"
+          initial={reduceMotion ? false : { opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: seconds(DURATION.slow), ease }}
+        >
           <div className="goby-map-illustration" aria-hidden="true">
             <span className="map-node map-node-a">IP</span>
             <span className="map-node map-node-b">WEB</span>
@@ -282,9 +291,14 @@ export function HomePage({ selectedTarget, activeTask, latestEvent, taskEvents, 
           >
             {submitting ? t("home.starting") : t("home.scan")}
           </button>
-        </div>
+        </m.div>
 
-        <div className="scan-launch goby-task-panel">
+        <m.div
+          className="scan-launch goby-task-panel"
+          initial={reduceMotion ? false : { opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: seconds(DURATION.slow), delay: reduceMotion ? 0 : 0.06, ease }}
+        >
           <div className="goby-task-title">
             <span className="goby-task-icon" aria-hidden="true">▣</span>
             <strong>{t("home.new_scan_task")}</strong>
@@ -376,7 +390,7 @@ export function HomePage({ selectedTarget, activeTask, latestEvent, taskEvents, 
           >
             {submitting ? t("home.starting_btn") : t("home.start")}
           </button>
-        </div>
+        </m.div>
       </div>
 
       {advancedOpen && (

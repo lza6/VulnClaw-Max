@@ -1,3 +1,6 @@
+import { m } from "motion/react";
+import { DURATION } from "../motion/tokens";
+import { useMotionPrefs } from "../motion/useMotionPrefs";
 import { useT, type TFunction } from "../i18n";
 import type { TaskEvent, TaskRecord } from "../types/api";
 import { countConstraintViolations, formatEventLabel, formatPhaseLabel, formatTaskTitle } from "../utils/taskLabels";
@@ -61,6 +64,7 @@ function blockedAttempts(task: TaskRecord, event: TaskEvent | null): number {
 
 export function ActiveTaskBanner({ task, latestEvent, onOpenAdvanced, onOpenBoundary, onOpenReports, onOpenTarget, onStop }: ActiveTaskBannerProps) {
   const { t } = useT();
+  const { reduce, seconds, ease } = useMotionPrefs();
 
   if (!task) return null;
 
@@ -71,7 +75,12 @@ export function ActiveTaskBanner({ task, latestEvent, onOpenAdvanced, onOpenBoun
   const isFailed = task.status === "failed";
 
   return (
-    <section className={`task-banner task-banner-${task.status}`}>
+    <m.section
+      className={`task-banner task-banner-${task.status}`}
+      initial={reduce ? false : { opacity: 0, y: -6 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: seconds(DURATION.fast), ease }}
+    >
       <div className="task-banner-main">
         <div>
           <span className="task-banner-kicker">{t("banner.active_scan")}</span>
@@ -108,6 +117,6 @@ export function ActiveTaskBanner({ task, latestEvent, onOpenAdvanced, onOpenBoun
       <div className="task-progress" aria-label={`Task progress ${progress}%`}>
         <span style={{ width: `${progress}%` }} />
       </div>
-    </section>
+    </m.section>
   );
 }
