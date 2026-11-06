@@ -24,6 +24,7 @@
 **本项目是可独立运行的 AI 渗透测试 Agent。**
 <br>
 项目官网：https://unclecheng-li.github.io/vulnclaw.com/
+站点（本仓库 `site/`）：https://lza6.github.io/VulnClaw-Max/
 <br>
 
 基于 LLM Agent + MCP 工具链 + 可选 Skill 参考资料，

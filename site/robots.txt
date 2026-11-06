@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://lza6.github.io/VulnClaw-Max/sitemap.xml

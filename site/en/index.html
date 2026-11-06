@@ -1,0 +1,145 @@
+<!doctype html>
+<!-- 站点基址：https://lza6.github.io/VulnClaw-Max  ·  换域名后同步 canonical / hreflang / og:url -->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>VulnClaw — AI Pentesting Agent and Automated Pentest CLI | Local-first</title>
+    <meta
+      name="description"
+      content="VulnClaw is a local-first automated pentest tool: describe a target in natural language and it runs recon, vulnerability discovery, exploitation and report generation. MCP toolchain, SARIF/PDF reports, MIT licensed."
+    />
+    <link rel="canonical" href="https://lza6.github.io/VulnClaw-Max/en/" />
+    <link rel="alternate" hreflang="zh-CN" href="https://lza6.github.io/VulnClaw-Max/" />
+    <link rel="alternate" hreflang="en" href="https://lza6.github.io/VulnClaw-Max/en/" />
+    <link rel="alternate" hreflang="x-default" href="https://lza6.github.io/VulnClaw-Max/en/" />
+    <link rel="icon" href="../favicon.svg" type="image/svg+xml" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="VulnClaw" />
+    <meta property="og:title" content="VulnClaw — AI Pentesting Agent, Local-first" />
+    <meta property="og:description" content="Natural-language driven pentest automation with MCP tooling and exportable Markdown / HTML / PDF / SARIF reports." />
+    <meta property="og:url" content="https://lza6.github.io/VulnClaw-Max/en/" />
+    <meta property="og:image" content="https://lza6.github.io/VulnClaw-Max/assets/og.png" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="stylesheet" href="../assets/site.css" />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "SoftwareApplication",
+        "name": "VulnClaw",
+        "applicationCategory": "SecurityApplication",
+        "operatingSystem": "Windows, macOS, Linux",
+        "description": "Local-first AI pentesting agent: recon, vulnerability discovery, exploitation and report generation driven by natural language.",
+        "url": "https://lza6.github.io/VulnClaw-Max/en/",
+        "codeRepository": "https://github.com/lza6/VulnClaw-Max",
+        "license": "https://github.com/lza6/VulnClaw-Max/blob/main/LICENSE",
+        "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+        "programmingLanguage": "Python"
+      }
+    </script>
+  </head>
+  <body>
+    <header class="site">
+      <div class="wrap">
+        <a class="brand" href="../index.html">
+          <img src="../favicon.svg" alt="" aria-hidden="true" />
+          VulnClaw
+        </a>
+        <nav class="site" aria-label="Main navigation">
+          <a href="../docs/index.html">Quick start</a>
+          <a href="https://github.com/lza6/VulnClaw-Max">GitHub</a>
+          <a href="https://pypi.org/project/vulnclaw/">PyPI</a>
+          <a href="../index.html" hreflang="zh-CN" lang="zh-CN">中文</a>
+        </nav>
+      </div>
+    </header>
+
+    <main>
+      <section class="hero">
+        <div class="wrap">
+          <p class="eyebrow">AI Pentesting Agent</p>
+          <h1>An AI pentesting agent that runs the whole loop on your machine</h1>
+          <p class="lead">
+            One instruction in plain language and VulnClaw walks through recon, vulnerability discovery,
+            exploitation and report generation. LLM agent + MCP toolchain + optional skill references,
+            compatible with OpenAI, Anthropic, MiniMax and DeepSeek endpoints.
+          </p>
+          <div class="cta-row">
+            <a class="btn" href="../docs/index.html">Quick start</a>
+            <a class="btn secondary" href="https://github.com/lza6/VulnClaw-Max">Source</a>
+          </div>
+          <pre><code>pip install vulnclaw
+vulnclaw web    # local console at http://127.0.0.1:7788</code></pre>
+        </div>
+      </section>
+
+      <section>
+        <div class="wrap">
+          <h2>Three things it does</h2>
+          <p class="section-lead">No cloud dashboard and no third-party staging of target data: you bring the model endpoint, artifacts stay on disk.</p>
+          <div class="grid">
+            <article class="card">
+              <h3>Natural-language loops</h3>
+              <p>State a target once. The agent advances round by round and every event and artifact stays inspectable.</p>
+            </article>
+            <article class="card">
+              <h3>Local-first with MCP</h3>
+              <p>Runs on one machine, keeps task state and reports locally, and pulls outside tools in over MCP with a plugin permission whitelist.</p>
+            </article>
+            <article class="card">
+              <h3>Reports that fit a pipeline</h3>
+              <p>Markdown, HTML, PDF, SARIF and JSON with pentest, executive and CTF templates, deliverable to webhooks, Jira or DefectDojo.</p>
+            </article>
+          </div>
+
+          <figure>
+            <img src="../assets/screenshot-risk.png" alt="VulnClaw findings workspace with target metrics, attack surface view and triage" loading="lazy" />
+            <figcaption>Findings workspace: target metrics, attack surface view and per-finding triage. Sample data uses the reserved domain example.com.</figcaption>
+          </figure>
+        </div>
+      </section>
+
+      <section>
+        <div class="wrap">
+          <h2>Who it is for</h2>
+          <div class="grid">
+            <article class="card">
+              <h3>Authorised pentests</h3>
+              <p>Hand repetitive recon and known-vulnerability verification to the agent; keep judgement and exploit chains for humans.</p>
+            </article>
+            <article class="card">
+              <h3>CTF and teaching</h3>
+              <p>A reproducible, round-by-round execution trace makes it a practical base for labs and drills.</p>
+            </article>
+            <article class="card">
+              <h3>Red team automation</h3>
+              <p>Scheduled runs plus integration delivery turn periodic checks into a ticketable workflow.</p>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <div class="wrap">
+          <h2>Scope</h2>
+          <div class="notice">
+            VulnClaw is for <strong>authorised</strong> pentests, CTFs and security education only.
+            It ships host, port, path and action allow/block lists; out-of-scope actions are blocked and recorded.
+            Unauthorised use may be illegal and is entirely at your own risk.
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site">
+      <div class="wrap">
+        <span>MIT License · Python 3.10+ · Windows / macOS / Linux</span>
+        <span>
+          <a href="../docs/index.html">Quick start</a> ·
+          <a href="../index.html">中文</a> ·
+          <a href="https://github.com/lza6/VulnClaw-Max/issues">Issues</a>
+        </span>
+      </div>
+    </footer>
+  </body>
+</html>

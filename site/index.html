@@ -1,0 +1,147 @@
+<!doctype html>
+<!--
+  站点基址：https://lza6.github.io/VulnClaw-Max
+  换自定义域名后需要同步：canonical / hreflang / og:url / sitemap.xml / robots.txt
+-->
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>VulnClaw — AI 驱动自动化渗透测试工具 | 本地优先 · 结构化报告</title>
+    <meta
+      name="description"
+      content="VulnClaw 是本地优先的自动化渗透测试工具：自然语言驱动「信息收集 → 漏洞发现 → 漏洞利用 → 报告生成」全流程，支持 MCP 工具链、Markdown/HTML/PDF/SARIF 报告导出，MIT 许可。"
+    />
+    <link rel="canonical" href="https://lza6.github.io/VulnClaw-Max/" />
+    <link rel="alternate" hreflang="zh-CN" href="https://lza6.github.io/VulnClaw-Max/" />
+    <link rel="alternate" hreflang="en" href="https://lza6.github.io/VulnClaw-Max/en/" />
+    <link rel="alternate" hreflang="x-default" href="https://lza6.github.io/VulnClaw-Max/en/" />
+    <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="VulnClaw" />
+    <meta property="og:title" content="VulnClaw — AI 驱动自动化渗透测试工具" />
+    <meta property="og:description" content="自然语言驱动全流程渗透测试，本地优先，报告可导出 Markdown / HTML / PDF / SARIF。" />
+    <meta property="og:url" content="https://lza6.github.io/VulnClaw-Max/" />
+    <meta property="og:image" content="https://lza6.github.io/VulnClaw-Max/assets/og.png" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="stylesheet" href="./assets/site.css" />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "SoftwareApplication",
+        "name": "VulnClaw",
+        "applicationCategory": "SecurityApplication",
+        "operatingSystem": "Windows, macOS, Linux",
+        "description": "本地优先的 AI 渗透测试 Agent：自然语言驱动信息收集、漏洞发现、漏洞利用与报告生成。",
+        "url": "https://lza6.github.io/VulnClaw-Max/",
+        "codeRepository": "https://github.com/lza6/VulnClaw-Max",
+        "license": "https://github.com/lza6/VulnClaw-Max/blob/main/LICENSE",
+        "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+        "programmingLanguage": "Python"
+      }
+    </script>
+  </head>
+  <body>
+    <header class="site">
+      <div class="wrap">
+        <a class="brand" href="./index.html">
+          <img src="./favicon.svg" alt="" aria-hidden="true" />
+          VulnClaw
+        </a>
+        <nav class="site" aria-label="主导航">
+          <a href="./docs/index.html">快速开始</a>
+          <a href="https://github.com/lza6/VulnClaw-Max">GitHub</a>
+          <a href="https://pypi.org/project/vulnclaw/">PyPI</a>
+          <a href="./en/index.html" hreflang="en" lang="en">English</a>
+        </nav>
+      </div>
+    </header>
+
+    <main>
+      <section class="hero">
+        <div class="wrap">
+          <p class="eyebrow">AI Pentesting Agent</p>
+          <h1>AI 驱动的自动化渗透测试工具，本地跑完整个流程</h1>
+          <p class="lead">
+            输入一句自然语言，VulnClaw 自动走完信息收集、漏洞发现、漏洞利用与报告生成。
+            LLM Agent + MCP 工具链 + 可选 Skill 参考资料，兼容 OpenAI / Anthropic / MiniMax / DeepSeek 等 OpenAI 兼容模型。
+          </p>
+          <div class="cta-row">
+            <a class="btn" href="./docs/index.html">快速开始</a>
+            <a class="btn secondary" href="https://github.com/lza6/VulnClaw-Max">查看源码</a>
+          </div>
+          <pre><code>pip install vulnclaw
+vulnclaw web    # 打开本地操作台 http://127.0.0.1:7788</code></pre>
+        </div>
+      </section>
+
+      <section>
+        <div class="wrap">
+          <h2>三条核心能力</h2>
+          <p class="section-lead">不依赖云端面板，不把目标数据上传到第三方：模型调用由你配置，产物落在本机。</p>
+          <div class="grid">
+            <article class="card">
+              <h3>自然语言驱动全流程</h3>
+              <p>一句话下达目标，Agent 分轮推进信息收集、漏洞发现、漏洞利用与报告生成，每轮事件与产物可回溯。</p>
+            </article>
+            <article class="card">
+              <h3>本地优先 + MCP 工具链</h3>
+              <p>单机运行，任务状态与报告存在本机；通过 MCP 接入外部工具，插件按阶段与权限白名单加载。</p>
+            </article>
+            <article class="card">
+              <h3>结构化报告自动化</h3>
+              <p>报告中心支持 Markdown / HTML / PDF / SARIF / JSON，模板可选渗透测试、执行摘要、CTF，可投递到 webhook / Jira / DefectDojo。</p>
+            </article>
+          </div>
+
+          <figure>
+            <img src="./assets/screenshot-risk.png" alt="VulnClaw 发现工作台：目标指标、攻击面视图与发现处置" loading="lazy" />
+            <figcaption>发现工作台：目标指标、攻击面视图与逐条发现处置。示例数据为目标保留域 example.com。</figcaption>
+          </figure>
+        </div>
+      </section>
+
+      <section>
+        <div class="wrap">
+          <h2>适合谁用</h2>
+          <div class="grid">
+            <article class="card">
+              <h3>授权的渗透测试</h3>
+              <p>把重复的侦察与已知漏洞验证交给 Agent，人工专注在判断与利用链设计。</p>
+            </article>
+            <article class="card">
+              <h3>CTF 与安全教学</h3>
+              <p>可复现的分轮执行过程，适合作为教学与演练的执行底座。</p>
+            </article>
+            <article class="card">
+              <h3>红队自动化</h3>
+              <p>定时任务 + 集成投递，把周期性检查与工单流转串成一条链路。</p>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <div class="wrap">
+          <h2>安全边界</h2>
+          <div class="notice">
+            VulnClaw 只用于<strong>已获得授权</strong>的渗透测试、CTF 竞赛与安全教学。
+            项目内置范围与动作边界（host / port / path / action 白名单与黑名单），越界动作会被拦截并记录。
+            未授权使用可能违反法律，风险由使用者承担。
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site">
+      <div class="wrap">
+        <span>MIT License · Python 3.10+ · Windows / macOS / Linux</span>
+        <span>
+          <a href="./docs/index.html">快速开始</a> ·
+          <a href="./en/index.html">English</a> ·
+          <a href="https://github.com/lza6/VulnClaw-Max/issues">反馈</a>
+        </span>
+      </div>
+    </footer>
+  </body>
+</html>

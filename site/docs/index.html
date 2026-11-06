@@ -1,0 +1,133 @@
+<!doctype html>
+<!-- 站点基址：https://lza6.github.io/VulnClaw-Max  ·  换域名后同步 canonical / sitemap -->
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>VulnClaw 快速开始 — 安装、配置模型、跑通第一条渗透测试命令</title>
+    <meta
+      name="description"
+      content="VulnClaw 快速开始：pip 安装、配置 OpenAI 兼容模型、运行 recon / scan / solve、启动本地 Web 操作台并导出报告。"
+    />
+    <link rel="canonical" href="https://lza6.github.io/VulnClaw-Max/docs/" />
+    <link rel="alternate" hreflang="zh-CN" href="https://lza6.github.io/VulnClaw-Max/docs/" />
+    <link rel="alternate" hreflang="x-default" href="https://lza6.github.io/VulnClaw-Max/" />
+    <link rel="icon" href="../favicon.svg" type="image/svg+xml" />
+    <meta property="og:type" content="article" />
+    <meta property="og:title" content="VulnClaw 快速开始" />
+    <meta property="og:description" content="安装、配置模型、跑通第一条命令，导出报告。" />
+    <meta property="og:url" content="https://lza6.github.io/VulnClaw-Max/docs/" />
+    <link rel="stylesheet" href="../assets/site.css" />
+  </head>
+  <body>
+    <header class="site">
+      <div class="wrap">
+        <a class="brand" href="../index.html">
+          <img src="../favicon.svg" alt="" aria-hidden="true" />
+          VulnClaw
+        </a>
+        <nav class="site" aria-label="主导航">
+          <a href="../index.html">产品首页</a>
+          <a href="https://github.com/lza6/VulnClaw-Max">GitHub</a>
+          <a href="https://pypi.org/project/vulnclaw/">PyPI</a>
+        </nav>
+      </div>
+    </header>
+
+    <main>
+      <section class="hero">
+        <div class="wrap">
+          <p class="eyebrow">快速开始</p>
+          <h1>十分钟跑通第一条渗透测试命令</h1>
+          <p class="lead">需要 Python 3.10+。全部操作在你自己的机器上完成，模型端点由你提供。</p>
+        </div>
+      </section>
+
+      <section>
+        <div class="wrap">
+          <h2>1. 安装</h2>
+          <pre><code>pip install vulnclaw              # 含 CLI
+pip install 'vulnclaw[web]'       # 需要本地 Web 操作台时</code></pre>
+        </div>
+      </section>
+
+      <section>
+        <div class="wrap">
+          <h2>2. 配置模型</h2>
+          <p class="section-lead">任选一个 OpenAI 兼容提供商，或指向你自己的端点。</p>
+          <pre><code>vulnclaw config provider minimax        # openai / anthropic / deepseek / zhipu / moonshot / qwen / ollama ...
+vulnclaw config set llm.base_url https://your-endpoint.example.com/v1
+vulnclaw config set llm.model your-model-name
+vulnclaw config set llm.api_key sk-your-key-here</code></pre>
+          <p class="section-lead">配置与产物默认落在 <code>~/.vulnclaw</code>（可用 <code>VULNCLAW_CONFIG_DIR</code> 覆盖）。</p>
+        </div>
+      </section>
+
+      <section>
+        <div class="wrap">
+          <h2>3. 跑第一条命令</h2>
+          <pre><code>vulnclaw recon https://example.com      # 只做信息收集
+vulnclaw scan  https://example.com      # 漏洞扫描阶段
+vulnclaw solve https://example.com --goal "确认是否存在未授权访问"</code></pre>
+          <div class="notice">
+            <code>example.com</code> 是文档保留域，请替换成你<strong>已获得授权</strong>的目标。
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <div class="wrap">
+          <h2>4. 本地 Web 操作台</h2>
+          <pre><code>vulnclaw web                # 默认 http://127.0.0.1:7788
+vulnclaw web --port 8080    # 自定义端口</code></pre>
+          <p class="section-lead">
+            启动后终端会打印带 <code>?token=</code> 的一次性链接，打开即完成本机会话鉴权。
+            操作台提供任务编排、运行详情、发现处置、报告中心、集成与定时任务。
+          </p>
+        </div>
+      </section>
+
+      <section>
+        <div class="wrap">
+          <h2>5. 常用命令</h2>
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">命令</th>
+                <th scope="col">用途</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td><code>vulnclaw run &lt;target&gt;</code></td><td>一键全流程（默认 solve 引擎）</td></tr>
+              <tr><td><code>vulnclaw recon &lt;target&gt;</code></td><td>仅信息收集，不利用</td></tr>
+              <tr><td><code>vulnclaw scan &lt;target&gt; --ports 80,443</code></td><td>漏洞扫描阶段</td></tr>
+              <tr><td><code>vulnclaw exploit &lt;target&gt; --cve CVE-2024-1234</code></td><td>漏洞利用阶段</td></tr>
+              <tr><td><code>vulnclaw report &lt;session.json&gt;</code></td><td>从会话生成报告</td></tr>
+              <tr><td><code>vulnclaw report example.com --target --template executive</code></td><td>按模板从目标状态生成报告（pentest / executive / ctf）</td></tr>
+              <tr><td><code>vulnclaw plugins list --stage discovery</code></td><td>列出漏洞检测插件</td></tr>
+              <tr><td><code>vulnclaw code scan ./src --format sarif</code></td><td>本地源码安全扫描</td></tr>
+              <tr><td><code>vulnclaw gc --older-than 30d --dry-run</code></td><td>清理历史数据（先预演）</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section>
+        <div class="wrap">
+          <h2>遇到问题</h2>
+          <p class="section-lead">
+            先跑 <code>vulnclaw doctor</code> 检查依赖与模型连通性；完整参数见仓库 README，
+            问题与建议走 <a href="https://github.com/lza6/VulnClaw-Max/issues">GitHub Issues</a>。
+          </p>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site">
+      <div class="wrap">
+        <span>MIT License · Python 3.10+</span>
+        <span><a href="../index.html">产品首页</a> · <a href="../en/index.html">English</a></span>
+      </div>
+    </footer>
+  </body>
+</html>

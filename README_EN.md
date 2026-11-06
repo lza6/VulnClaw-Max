@@ -36,6 +36,8 @@ Natural language input → automated "Recon → Vulnerability Discovery → Expl
 
 ---
 
+> Site (built from `site/`): https://lza6.github.io/VulnClaw-Max/en/
+
 ## What It Does
 
 Give it a natural language command and watch it run a full pentest:
