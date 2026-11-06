@@ -3,12 +3,32 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <meta name="theme-color" content="#f6f9fe" />
-    <title>VulnClaw Web UI</title>
-    <script type="module" crossorigin src="/assets/index-Dk1qu_cd.js"></script>
-    <link rel="stylesheet" crossorigin href="/assets/index-Bg_JJzo4.css">
+    <meta name="description" content="VulnClaw Web UI — 本地优先的自动化渗透测试工作台：任务编排、发现处置、报告中心。" />
+    <meta name="robots" content="noindex, nofollow" />
+    <meta name="theme-color" content="#f4f8fe" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <title>VulnClaw Web UI</title>
+    <script>
+      // 首帧前定主题，避免深色用户看到一闪而过的浅色底。
+      (function () {
+        try {
+          var raw = window.localStorage.getItem("vulnclaw.ui.preferences");
+          var pref = raw ? JSON.parse(raw).theme : "auto";
+          if (pref !== "light" && pref !== "dark") {
+            pref = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+          }
+          document.documentElement.dataset.theme = pref;
+          var meta = document.querySelector('meta[name="theme-color"]');
+          if (meta) meta.setAttribute("content", pref === "dark" ? "#0b1220" : "#f4f8fe");
+        } catch (error) {
+          /* 存储损坏时按浅色渲染，React 侧会写回默认值 */
+        }
+      })();
+    </script>
+    <script type="module" crossorigin src="/assets/index-DrCLCLc4.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-B9-VThVJ.css">
   </head>
   <body>
     <div id="root"></div>
   </body>
-  </html>
+</html>
