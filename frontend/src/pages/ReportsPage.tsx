@@ -74,9 +74,6 @@ export function ReportsPage({ selectedTarget, focus }: ReportsPageProps) {
   const selectedReport = filteredReports.find((report) => report.path === selectedPath) ?? filteredReports[0] ?? null;
   const previewPath = selectedReport?.path ?? null;
   const contentQuery = useReportContentQuery(previewPath);
-  const markdownCount = reports.filter((report) => report.kind === "markdown").length;
-  const htmlCount = reports.filter((report) => report.kind === "html").length;
-  const totalSize = reports.reduce((sum, report) => sum + (report.size_bytes ?? 0), 0);
   const canGenerate = Boolean(reportTarget.trim()) && !generating;
   const previewContent = selectedReport ? contentQuery.data?.content : undefined;
   const previewKind = selectedReport ? contentQuery.data?.kind : undefined;

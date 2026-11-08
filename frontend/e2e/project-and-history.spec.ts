@@ -51,7 +51,7 @@ test("history lists the snapshots of the selected target", async ({ page, reques
 
   await page.goto("/");
   await page.locator('button.nav-item[aria-label="历史"]').click();
-  await page.locator(".history-page select").first().selectOption("https://example.com");
+  await page.locator('[data-testid="history-target-select"]').selectOption("https://example.com");
 
   await expect(page.getByText(/\d{8}_\d{6}_\d*\w*_scan/).first()).toBeVisible({ timeout: 15_000 });
   await page.screenshot({ path: "e2e-artifacts/history-snapshots.png", fullPage: true });

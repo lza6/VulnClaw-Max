@@ -5,7 +5,7 @@ import { ConfirmDialog } from "../components/ConfirmDialog";
 import { RunDetailDialog } from "../components/RunDetailDialog";
 import { SectionCard } from "../components/SectionCard";
 import { useT, type TFunction } from "../i18n";
-import { useRunsQuery, useTargetDiffQuery, useTargetSnapshotsQuery, useTargetsQuery, useTasksQuery } from "../hooks/queries";
+import { useProjectsQuery, useRunsQuery, useTargetDiffQuery, useTargetSnapshotsQuery, useTargetsQuery, useTasksQuery } from "../hooks/queries";
 import { formatPhaseLabel, formatResumeStrategy, formatTaskCommand, formatTaskStatus, formatTaskTitle } from "../utils/taskLabels";
 
 interface HistoryPageProps {
@@ -40,8 +40,10 @@ export function HistoryPage({ selectedTarget, onSelectTarget, onOpenHome, onOpen
   const queryClient = useQueryClient();
   const targetsQuery = useTargetsQuery();
   const tasksQuery = useTasksQuery();
+  const projectsQuery = useProjectsQuery();
   const runsQuery = useRunsQuery();
   const [localTarget, setLocalTarget] = useState("");
+  const [projectFilter, setProjectFilter] = useState<string>("");
   const [fromSnapshotId, setFromSnapshotId] = useState<string | null>(null);
   const [toSnapshotId, setToSnapshotId] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -81,9 +83,14 @@ export function HistoryPage({ selectedTarget, onSelectTarget, onOpenHome, onOpen
   }, [snapshotsQuery.data]);
 
   const targetTasks = useMemo(() => {
-    const tasks = tasksQuery.data ?? [];
+    let tasks = tasksQuery.data ?? [];
+    if (projectFilter === "__none__") {
+      tasks = tasks.filter((task) => !task.project_id);
+    } else if (projectFilter) {
+      tasks = tasks.filter((task) => task.project_id === projectFilter);
+    }
     return targetValue ? tasks.filter((task) => task.target === targetValue) : tasks;
-  }, [tasksQuery.data, targetValue]);
+  }, [tasksQuery.data, targetValue, projectFilter]);
 
   async function handleRollback(snapshotId: string) {
     if (!targetValue) return;
@@ -114,8 +121,25 @@ export function HistoryPage({ selectedTarget, onSelectTarget, onOpenHome, onOpen
         aside={<span className="status-badge">{t("history.tasks_count", { count: String(targetTasks.length) })}</span>}
       >
         <label className="field">
+          <span>{t("home.project")}</span>
+          <select
+            value={projectFilter}
+            onChange={(event) => setProjectFilter(event.target.value)}
+            aria-label={t("home.project")}
+            data-testid="history-project-filter"
+          >
+            <option value="">{t("history.all_projects")}</option>
+            <option value="__none__">{t("history.no_project_tasks")}</option>
+            {(projectsQuery.data ?? []).map((item) => (
+              <option key={item.slug} value={item.slug}>{item.name || item.slug}</option>
+            ))}
+          </select>
+        </label>
+        <label className="field">
           <span>{t("risk.target")}</span>
           <select
+            aria-label={t("risk.target")}
+            data-testid="history-target-select"
             value={targetValue ?? ""}
             onChange={(event) => {
               const value = event.target.value || null;

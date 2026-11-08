@@ -1,4 +1,3 @@
-import type { TaskCommand } from "../types/api";
 import { t } from "../i18n";
 
 export function formatTaskCommand(command: string | null | undefined): string {

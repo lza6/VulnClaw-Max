@@ -248,6 +248,7 @@ export interface TaskRecord {
   error?: string;
   resume: boolean;
   snapshot_id?: string | null;
+  project_id?: string | null;
   options: TaskOptions;
   latest_phase?: string | null;
   latest_message?: string | null;

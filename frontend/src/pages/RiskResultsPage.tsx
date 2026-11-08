@@ -9,7 +9,6 @@ import { useT, type TFunction } from "../i18n";
 import type { FindingTriageStatus } from "../types/api";
 import { loadUiPreferences, subscribeUiPreferences, type UiPreferences } from "../utils/preferences";
 import {
-  countConstraintViolations,
   formatConstraintSummary,
   formatFindingStatus,
   formatPhaseLabel,
@@ -171,16 +170,11 @@ export function RiskResultsPage({ selectedTarget, onSelectTarget, onOpenHome, on
     () => new Map((findingsQuery.data ?? []).map((item) => [item.finding_key, item])),
     [findingsQuery.data],
   );
-  const criticalOrHigh = findings.filter((item) => severityTone(item.severity) === "danger").length;
   const uniqueTypes = Array.from(new Set(findings.map((item) => item.type).filter(Boolean))).slice(0, 4);
   const portSignals = Array.from(new Set(findings.map((item) => {
     const match = item.evidence.match(/\b(?:port|:)\s*(\d{2,5})\b/i);
     return match?.[1];
   }).filter((item): item is string => Boolean(item)))).slice(0, 5);
-  const boundaryBlocks = countConstraintViolations(
-    target?.constraint_violation_events,
-    target?.constraint_violations,
-  );
   const nextActions = preview?.next_actions ?? [];
   const actionCards = useMemo(
     () => buildActionCards(nextActions, target?.pending_count ?? 0, target?.manual_review_count ?? 0, t),

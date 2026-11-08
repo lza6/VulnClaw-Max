@@ -13,7 +13,6 @@ import {
   formatActionList,
   formatEventLabel,
   formatPhaseLabel,
-  formatTaskCommand,
   formatTaskStatus,
 } from "../utils/taskLabels";
 import { parseOptionalPort } from "../utils/validation";

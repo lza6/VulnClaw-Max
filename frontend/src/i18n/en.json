@@ -765,5 +765,13 @@
   "risk.attack_surface_col_severity": "Severity",
   "risk.attack_surface_col_type": "Type",
   "risk.attack_surface_col_status": "Status",
-  "risk.attack_surface_more": "{count} more in the full list below"
+  "risk.attack_surface_more": "{count} more in the full list below",
+  "settings.mcp_enable": "Enable",
+  "settings.mcp_disable": "Disable",
+  "settings.mcp_applying": "Applying…",
+  "settings.mcp_applies_next": "Takes effect on the next task",
+  "boundary.export_jsonl": "Export JSONL",
+  "boundary.export_csv": "Export CSV",
+  "history.all_projects": "All projects",
+  "history.no_project_tasks": "No project"
 }

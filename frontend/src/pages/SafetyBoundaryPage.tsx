@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { SectionCard } from "../components/SectionCard";
+import { getAuditExportUrl } from "../api/web";
 import { useConstraintAuditQuery, useTargetQuery, useTargetsQuery } from "../hooks/queries";
 import { useT, type TFunction } from "../i18n";
 import type { ConstraintAuditEventView, TaskOptions, TaskRecord } from "../types/api";
@@ -359,9 +360,27 @@ export function SafetyBoundaryPage({ selectedTarget, activeTask, onOpenHome, onO
       <SectionCard
         title={t("boundary.technical_audit")}
         aside={
-          <button type="button" className="text-btn inline-text-btn" onClick={() => setShowTechnical((value) => !value)}>
-            {showTechnical ? t("boundary.hide") : t("boundary.show")}
-          </button>
+          <div className="button-row">
+            <a
+              className="text-btn inline-text-btn"
+              data-testid="audit-export-jsonl"
+              href={getAuditExportUrl("jsonl")}
+              download="vulnclaw-audit.jsonl"
+            >
+              {t("boundary.export_jsonl")}
+            </a>
+            <a
+              className="text-btn inline-text-btn"
+              data-testid="audit-export-csv"
+              href={getAuditExportUrl("csv")}
+              download="vulnclaw-audit.csv"
+            >
+              {t("boundary.export_csv")}
+            </a>
+            <button type="button" className="text-btn inline-text-btn" onClick={() => setShowTechnical((value) => !value)}>
+              {showTechnical ? t("boundary.hide") : t("boundary.show")}
+            </button>
+          </div>
         }
       >
         {showTechnical ? (

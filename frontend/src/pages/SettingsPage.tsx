@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type { ConfigView } from "../types/api";
-import { fetchProviderModels, updateConfig } from "../api/web";
+import { fetchProviderModels, toggleMcpServer, updateConfig } from "../api/web";
 import { IntegrationsPanel } from "../components/IntegrationsPanel";
 import { SchedulesPanel } from "../components/SchedulesPanel";
 import { SectionCard } from "../components/SectionCard";
@@ -68,6 +69,13 @@ export function SettingsPage({ initialSection = "basic", onOpenAdvanced }: Setti
   const configQuery = useConfigQuery();
   const mcpQuery = useMcpDiagnosticsQuery();
   const providersQuery = useProvidersQuery();
+  const queryClient = useQueryClient();
+  const mcpToggle = useMutation({
+    mutationFn: ({ name, enabled }: { name: string; enabled: boolean }) => toggleMcpServer(name, enabled),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["mcp-diagnostics"] });
+    },
+  });
   const [activeSection, setActiveSection] = useState<SettingsSection>(initialSection);
   const [provider, setProvider] = useState("openai");
   const [model, setModel] = useState("");
@@ -696,6 +704,20 @@ export function SettingsPage({ initialSection = "basic", onOpenAdvanced }: Setti
                       Calls {service.call_count} - Success {service.success_count} - Failed {service.failure_count}
                     </span>
                     {service.error && <span className="danger-inline">{service.error}</span>}
+                    <button
+                      type="button"
+                      className="text-btn inline-text-btn"
+                      data-testid={`mcp-toggle-${service.name}`}
+                      disabled={mcpToggle.isPending}
+                      onClick={() => mcpToggle.mutate({ name: service.name, enabled: !service.enabled })}
+                    >
+                      {mcpToggle.isPending && mcpToggle.variables?.name === service.name
+                        ? t("settings.mcp_applying")
+                        : service.enabled
+                          ? t("settings.mcp_disable")
+                          : t("settings.mcp_enable")}
+                    </button>
+                    <span className="muted-inline">{t("settings.mcp_applies_next")}</span>
                   </div>
                 ))}
                 {!mcpQuery.data?.services.length && <div className="empty-state">{t("settings.no_mcp_diag")}</div>}

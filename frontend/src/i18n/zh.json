@@ -765,5 +765,13 @@
   "risk.attack_surface_col_severity": "严重度",
   "risk.attack_surface_col_type": "类型",
   "risk.attack_surface_col_status": "状态",
-  "risk.attack_surface_more": "另有 {count} 条，见下方完整清单"
+  "risk.attack_surface_more": "另有 {count} 条，见下方完整清单",
+  "settings.mcp_enable": "启用",
+  "settings.mcp_disable": "停用",
+  "settings.mcp_applying": "应用中…",
+  "settings.mcp_applies_next": "对下一个任务生效",
+  "boundary.export_jsonl": "导出 JSONL",
+  "boundary.export_csv": "导出 CSV",
+  "history.all_projects": "全部项目",
+  "history.no_project_tasks": "未关联项目"
 }

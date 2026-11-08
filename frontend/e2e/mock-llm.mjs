@@ -38,7 +38,7 @@ const server = http.createServer((request, response) => {
     body += chunk;
   });
   request.on("end", () => {
-    let payload = {};
+    let payload;
     try {
       payload = JSON.parse(body || "{}");
     } catch {

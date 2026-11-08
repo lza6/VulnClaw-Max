@@ -46,7 +46,7 @@ export function useTargetsQuery() {
 export function useTasksQuery() {
   return useQuery({
     queryKey: ["tasks"],
-    queryFn: getTasks,
+    queryFn: () => getTasks(),
     staleTime: 5_000,
     refetchInterval: 5_000,
   });

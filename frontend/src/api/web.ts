@@ -113,8 +113,23 @@ export function getMcpDiagnostics(): Promise<MCPDiagnosticsView> {
   return requestJson<MCPDiagnosticsView>("/api/mcp");
 }
 
+export function toggleMcpServer(name: string, enabled: boolean): Promise<{ name: string; enabled: boolean; applies_to: string }> {
+  return requestJson("/api/mcp/toggle", {
+    method: "POST",
+    body: JSON.stringify({ name, enabled }),
+  });
+}
+
 export function getConstraintAudit(): Promise<ConstraintAuditView> {
   return requestJson<ConstraintAuditView>("/api/constraint-audit");
+}
+
+export function getAuditExportUrl(format: "jsonl" | "csv"): string {
+  return `/api/audit/export?format=${format}`;
+}
+
+export function getAuditExportRequestInit(): RequestInit {
+  return { method: "GET" };
 }
 
 export function updateConfig(payload: ConfigUpdateRequest): Promise<ConfigView> {
@@ -135,8 +150,9 @@ export function fetchProviderModels(payload: ProviderModelsRequest): Promise<Pro
   });
 }
 
-export function getTasks(): Promise<TaskRecord[]> {
-  return requestJson<TaskRecord[]>("/api/tasks");
+export function getTasks(project?: string): Promise<TaskRecord[]> {
+  const suffix = project === undefined ? "" : `?project=${encodeURIComponent(project)}`;
+  return requestJson<TaskRecord[]>(`/api/tasks${suffix}`);
 }
 
 export function getTargets(): Promise<TargetView[]> {
