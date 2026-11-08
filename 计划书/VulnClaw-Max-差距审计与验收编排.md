@@ -176,12 +176,11 @@
 - 本地 401 mock → `recon` exit 1、错误脱敏。
 - 本地 401 mock → Web 任务 `failed` / `task_failed`。
 - codescan 真任务 → 完成、事件、soak。
-- 本地 401 mock → `run --engine solve` **exit 0**（这是失败证据，不是通过）。
+- 本地 401 mock → `run --engine solve` 曾 **exit 0**，已修复为 exit 1。
+- 失败矩阵（真实 SDK × 本地 provider mock）：401/403 首次请求即失败且脱敏；429/500/timeout/malformed/空 choices/连接断开重试耗尽后抛 `LLMInvocationError`；取消原样上抛；retry-then-ok 恢复并计数；solve/team/rounds/persistent 入口均上抛 fatal 错误；`run_agent_task` 记录 `failed`/exit 1；`recon`/`scan`/`exploit`/`run --engine solve` 四个 CLI 命令在真实 401 provider 下 exit 1。用例：`tests/agent/test_llm_transport_failure_matrix.py`、`tests/agent/test_engine_fatal_propagation.py`、`tests/cli/test_cli_mock_llm_failure.py`；mock：`scripts/mock_llm_server.py`。
 
 **未完成：**
-- 成功 LLM mock：文本回复、工具调用、流式 chunk、usage。
-- 失败矩阵：401 / 403 / 429 / timeout / malformed / retry exhausted / cancellation。
-- solve/team/rounds/persistent 的失败传播。
+- 成功 LLM mock 的文本/工具调用/流式 chunk/usage 断言（mock server 已提供 `ok`/`tool`/`stream_ok` 场景，尚未写对应用例）。
 - 真实付费 LLM：预算 0，除非你明确批准并给预算；默认继续用本地 mock。
 
 ### 4.3 真实 E2E

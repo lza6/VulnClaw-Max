@@ -640,6 +640,9 @@ frontend/
 - `tests/web/test_audit_export.py`
 - `tests/web/test_projects.py`
 - `tests/web/test_mcp_toggle.py`
+- `tests/agent/test_llm_transport_failure_matrix.py`（真实 SDK × 本地 provider mock）
+- `tests/agent/test_engine_fatal_propagation.py`
+- `tests/cli/test_cli_mock_llm_failure.py`
 - 前端：`src/utils/__tests__/*`、`src/api/__tests__/web.test.ts`
 
 ### 11.3 当前验证
@@ -686,6 +689,7 @@ Web 401 mock                                       -> failed / task_failed；SSE
 | P2-07/08/09/10/11/16 | 已完成 | 语言回落、lang/title、aria、焦点陷阱、reduced-motion、gc |
 | 目标索引第二阶段 | **已完成** | `index.json`，500 目标 0.012 s |
 | 真实 E2E | **已完成** | 13 条主链路通过（含集成配置、任务通知与投递历史、定时任务、executive 模板、插件清单、项目关联任务、历史快照）；CI 增加 e2e step |
+| LLM 失败矩阵 | **已完成** | `scripts/mock_llm_server.py`（401/403/429/500/timeout/malformed/empty choices/connection drop/retry-then-ok/stream/hang）；传输层 11 例、引擎层 5 例、CLI 4 条命令端到端通过。401/403 首次请求即失败且密钥脱敏；429/500/timeout/malformed/empty/drop 重试耗尽后抛 `LLMInvocationError`；取消原样上抛；retry-then-ok 恢复并计数；`recon`/`scan`/`exploit`/`run --engine solve` 在真实 401 provider 下 exit 1。真实付费 provider 行为仍按预算 0 不测 |
 
 ## 附录 A：本次实测原始输出
 

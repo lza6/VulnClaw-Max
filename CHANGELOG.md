@@ -49,6 +49,15 @@
 - **修复：选择项目导致任务创建 422** — `options.project` 被“命令无关选项”校验拦下，首页项目选择器一选项目就 422；`project` 现为跨命令字段。
 - **报告 PDF 走真实渲染路径** — 装上声明过的 `vulnclaw[pdf]`（reportlab）后实测生成真实 PDF（`%PDF-` 头、可列出 `pdf` 类型）；缺该 extra 时 `/api/reports/target` 返回 400 与安装提示，而不是 500。
 - **清理：删除 `vulnclaw/cli/__init__.py` 里过期的 `_generate_report_for_target` 副本** — 该方法与 `cli/_helpers.py` 的实现重复且不带 `template` 参数，任何调用都会绕过新的模板逻辑；保留 `cli/_helpers.py` 作为唯一实现。
+- **CLI 启动预算收紧到 0.44 s** — `importlib.metadata`、`asyncio`、`headless`/`manual`/`experience_ops`、i18n 目录全部延迟到命令体内加载；`typer` 装饰器默认值内联自 `headless` 常量并用测试钉住来源；`--help` 冷启动中位数 0.44 s（目标 <0.5 s）。
+- **MCP 启停接进设置页** — 诊断分区每个 MCP server 增加启用/停用按钮（写 `/api/mcp/toggle` 并失效诊断缓存），前端此前只能看不能控。
+- **审计导出接进边界页** — 技术审计卡新增 JSONL/CSV 下载入口，后端 `/api/audit/export` 不再是"只有 API 没有按钮"。
+- **任务列表按项目过滤** — `GET /api/tasks?project=<slug>`（`?project=` 匹配未关联任务）；历史页新增项目筛选下拉，项目维度从"只写不读"变成可用过滤。
+- **KB 离线包** — `vulnclaw kb pack <out.json>` / `vulnclaw kb restore <bundle>` 打包与恢复知识库（幂等、版本校验、坏行跳过），doctor 增加离线 KB 就绪检查；补 6 条 pack/restore 单测。
+- **删除 version-manifest.txt** — 无代码引用的死文件；版本一致性测试改为断言该文件不存在。
+- **ESLint 落地** — flat config（typescript-eslint + react-hooks），`npm run lint` 入 CI；真实修掉 8 处未用变量/死赋值，13 处既有 `setState-in-effect` 模式降为 warning 待后续迁移。
+- **app.py 覆盖率 89% → 93%** — 新增错误分支用例覆盖任务 404/409、事件游标、目标回滚/清除、项目/报告/集成/发现 404 与离线 400。
+- **CI Codecov 上传改非阻塞** — Codecov 项目未关联本仓库（上传 API 返回 Repository not found）导致 main 长期红；先改 best-effort，仓库接入后恢复 `fail_ci_if_error`。
 - **修复：目标子路由被通配路由遮蔽** — `{target:path}` 注册在 `/raw`、`/snapshots`、`/rollback` 之前，导致历史页的快照列表与差异对比恒为空；通配路由改为最后注册。
 - **插件样例包与清单界面** — 新增可安装的样例插件 `examples/plugins/vulnclaw-plugin-demo`（`Set-Cookie` 安全属性检测）；`/api/plugins` 汇总内置与 `vulnclaw.plugins` 入口点插件，单个坏入口点只记录为加载错误，不再整体失败；Web 新增插件页（阶段/来源筛选、搜索）。
 - **真实 E2E** — Playwright + 本地 mock LLM，覆盖首页任务、运行详情、发现处置、报告 SARIF 下载、stop 409 与终态 SSE，以及集成配置的保存/测试/删除、executive 模板报告生成、插件清单筛选、任务完成通知投递、投递历史、定时任务增删改、项目关联任务、历史快照（13 条用例）；CI 增加前端 E2E step。

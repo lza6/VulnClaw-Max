@@ -146,6 +146,9 @@ ignore = ["E501"]
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+# Tests import scripts/ (e.g. the local provider mock) regardless of whether
+# pytest is launched as `pytest` or `python -m pytest`.
+pythonpath = ["."]
 
 # Coverage is opt-in to keep normal runs fast:
 #   pytest --cov=vulnclaw --cov-report=term-missing

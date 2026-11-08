@@ -1,0 +1,1 @@
+{"id":"int-24b5e7df9f9fe96495eb24f9d37d721e","kind":"field_change","created_at":"2026-11-06T01:39:20.2812429Z","actor":"wdawdwa","issue_id":"beads-planning-e4g","extra":{"field":"status","new_value":"closed","old_value":"open","reason":"mock server + 传输层 11 例 + 引擎层 5 例 + CLI 4 条端到端全部通过；ruff 全仓通过；agent/cli 回归 1130 passed"}}
