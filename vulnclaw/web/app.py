@@ -7,6 +7,7 @@ import contextlib
 import time
 from contextlib import asynccontextmanager, contextmanager
 from pathlib import Path
+from typing import Optional
 
 from vulnclaw import __version__
 from vulnclaw.encoding import configure_stdio_utf8
@@ -401,8 +402,14 @@ def create_app():
         return fetch_models(request).model_dump(mode="json")
 
     @app.get("/api/tasks")
-    async def tasks():
-        return [item.model_dump(mode="json") for item in task_manager.list_tasks()]
+    async def tasks(project: Optional[str] = None):
+        records = task_manager.list_tasks()
+        if project is not None:
+            if project == "":
+                records = [item for item in records if not item.project_id]
+            else:
+                records = [item for item in records if item.project_id == project]
+        return [item.model_dump(mode="json") for item in records]
 
     @app.post("/api/tasks/run")
     async def create_task(request: TaskCreateRequest):
