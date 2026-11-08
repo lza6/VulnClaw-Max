@@ -54,6 +54,10 @@ jobs:
         working-directory: frontend
         run: npx tsc -b
 
+      - name: Frontend lint
+        working-directory: frontend
+        run: npm run lint
+
       - name: Frontend unit tests
         working-directory: frontend
         run: npm run test
@@ -71,13 +75,17 @@ jobs:
         if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.12'
         run: pytest -q --cov=vulnclaw --cov-report=xml --cov-report=term-missing
 
+      # The Codecov project is not linked to this repository yet
+      # ("Repository not found" from the upload API), so a hard failure here
+      # kept main permanently red. Upload best-effort; flip fail_ci_if_error
+      # back on once the repo is connected on codecov.io.
       - name: Upload coverage to Codecov
         if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.12'
         uses: codecov/codecov-action@v5
         with:
           files: coverage.xml
           flags: python
-          fail_ci_if_error: true
+          fail_ci_if_error: false
           use_oidc: true
 
   rust-tui:
