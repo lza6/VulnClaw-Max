@@ -200,3 +200,34 @@ def test_schedule_routes(client):
     assert client.get("/api/schedules").json()[0]["target"] == "example.com"
     assert client.delete("/api/schedules/nightly").status_code == 200
     assert client.delete("/api/schedules/nightly").status_code == 404
+
+
+
+def test_tasks_list_filters_by_project(client):
+    """`/api/tasks?project=` filters by project_id; `?project=` matches unassigned."""
+
+    import vulnclaw.web.app as web_app
+    from vulnclaw.web.schemas import TaskCreateRequest, TaskOptions
+
+    manager = web_app.task_manager
+    assigned = manager.create_task(
+        TaskCreateRequest(command="recon", target="https://proj-a.example", options=TaskOptions(project="alpha"))
+    )
+    unassigned = manager.create_task(
+        TaskCreateRequest(command="recon", target="https://plain.example")
+    )
+
+    all_ids = {item["task_id"] for item in client.get("/api/tasks").json()}
+    assert assigned.task_id in all_ids and unassigned.task_id in all_ids
+
+    alpha_ids = {item["task_id"] for item in client.get("/api/tasks?project=alpha").json()}
+    # The manager is a module-level singleton shared across tests; assert
+    # inclusion rather than exact-set equality.
+    assert assigned.task_id in alpha_ids
+    assert unassigned.task_id not in alpha_ids
+
+    none_ids = {item["task_id"] for item in client.get("/api/tasks?project=").json()}
+    assert unassigned.task_id in none_ids
+    assert assigned.task_id not in none_ids
+    for record in client.get("/api/tasks?project=alpha").json():
+        assert record["project_id"] == "alpha"

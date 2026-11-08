@@ -1,6 +1,5 @@
 """🦞 VulnClaw — AI-powered penetration testing CLI tool."""
 
-from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
 
 _FALLBACK_VERSION = "0.5.0"
@@ -38,6 +37,10 @@ def _resolve_version() -> str:
         return from_pyproject
     # Installed distribution (a wheel ships no pyproject.toml): read the version
     # baked into the package metadata, falling back to a pinned default.
+    # importlib.metadata costs ~100 ms on a cold interpreter, so it is only
+    # imported on the installed-wheel path where pyproject.toml is absent.
+    from importlib.metadata import PackageNotFoundError, version
+
     try:
         return version("vulnclaw")
     except PackageNotFoundError:

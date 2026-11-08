@@ -11,6 +11,7 @@ import yaml
 from typer.testing import CliRunner
 
 import vulnclaw.cli.main as cli_main
+from vulnclaw import headless
 from vulnclaw.cli.main import app
 from vulnclaw.config.schema import VulnClawConfig
 
@@ -96,7 +97,7 @@ class TestNonInteractiveOutput:
         monkeypatch.setattr(cli_main.console, "input", _boom)
 
         result = runner.invoke(app, ["run", "https://example.com", "--non-interactive"])
-        assert result.exit_code == cli_main.headless.EXIT_CLEAN
+        assert result.exit_code == headless.EXIT_CLEAN
 
     def test_structured_summary_lands_in_run_directory(self, runner, monkeypatch, tmp_path):
         _install_fake_run(monkeypatch, findings=[_Finding(verified=True)])
@@ -105,7 +106,7 @@ class TestNonInteractiveOutput:
         result = runner.invoke(
             app, ["run", "https://example.com", "--non-interactive", "--scan-mode", "quick"]
         )
-        assert result.exit_code == cli_main.headless.EXIT_VERIFIED
+        assert result.exit_code == headless.EXIT_VERIFIED
 
         summaries = list(tmp_path.glob("*/summary.json"))
         assert len(summaries) == 1
@@ -113,7 +114,7 @@ class TestNonInteractiveOutput:
         assert data["target"] == "https://example.com"
         assert data["scan_mode"] == "quick"
         assert data["findings"]["verified"] == 1
-        assert data["exit_code"] == cli_main.headless.EXIT_VERIFIED
+        assert data["exit_code"] == headless.EXIT_VERIFIED
         assert data["profile"]["max_parallel"] == 1  # quick → fan-out off
 
     def test_report_is_co_located_in_run_directory_by_default(self, runner, monkeypatch, tmp_path):

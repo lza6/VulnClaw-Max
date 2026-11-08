@@ -1,15 +1,22 @@
-﻿"""VulnClaw CLI main entry point with REPL and sub-commands."""
+"""VulnClaw CLI main entry point with REPL and sub-commands."""
 
 # ruff: noqa: E402
 
 from __future__ import annotations
 
-import asyncio
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:  # lazy imports below make these names import-time unavailable
+    from vulnclaw import headless
+    from vulnclaw.cli import experience_ops
+
 import os
 import sys
 import time
 from typing import Any, Optional
 
+# asyncio costs ~100 ms on a cold interpreter and is only used inside command
+# bodies; import it lazily at the call sites instead of module scope.
 from vulnclaw.encoding import configure_stdio_utf8
 
 configure_stdio_utf8()
@@ -18,8 +25,14 @@ import typer
 from rich.panel import Panel
 from rich.text import Text
 
-from vulnclaw import __version__, headless
-from vulnclaw.cli import experience_ops
+from vulnclaw import __version__
+
+# Headless defaults are plain string literals duplicated here so the typer
+# decorators can bind them without importing vulnclaw.headless (≈120 ms).
+# tests/meta/test_cli_headless_defaults.py pins them to the source of truth.
+DEFAULT_FAIL_ON = "verified"
+DEFAULT_SCAN_MODE = "standard"
+DEFAULT_SCOPE_MODE = "full"
 
 # === Stream Output Renderer ===
 # 修改者: Nyaecho
@@ -38,7 +51,6 @@ from vulnclaw.cli._helpers import (
     err_console,
     format_llm_user_error,
 )
-from vulnclaw.cli.manual import available_topics, render_manual
 
 RUNS_DIR: Any = None
 
@@ -84,11 +96,10 @@ def list_providers(*args, **kwargs):
 
     return _impl(*args, **kwargs)
 
-from vulnclaw.i18n import _
-from vulnclaw.i18n.phases import localized_phase_name
 
 
 def _emit_solve_report_if_completed(agent: Any, config: Any) -> str:
+    from vulnclaw.i18n import _  # lazy i18n
     """Generate and optionally print the replay report for a completed solve run."""
 
     state = getattr(getattr(getattr(agent, "context", None), "state", None), "agent_state", None)
@@ -123,6 +134,7 @@ def _emit_solve_report_if_completed(agent: Any, config: Any) -> str:
 def _prepare_repl_target(
     agent, requested_target: str, current_target: Optional[str], current_phase: str
 ) -> tuple[str, str, bool]:
+    from vulnclaw.i18n import _  # lazy i18n
     """Prepare REPL state for a target switch and optionally restore history."""
     target = requested_target.strip()
     if not target:
@@ -148,12 +160,14 @@ async def _run_repl_agent_call(agent, *, call, after_result) -> None:
 
 
 def _localized_phase_label(phase: Any) -> str:
+    from vulnclaw.i18n.phases import localized_phase_name  # lazy i18n
     """Return a display-only phase label for the active UI language."""
     raw = getattr(phase, "value", phase)
     return localized_phase_name(str(raw or "").strip())
 
 
 def _make_repl_prompt_session() -> Any:
+    from vulnclaw.i18n import _  # lazy i18n
     """Build a prompt_toolkit session with the skill palette, or None if unavailable.
 
     Returns None when stdin is not a TTY (pipes, CI, ``--once`` smoke tests) or
@@ -235,6 +249,7 @@ def _run_repl_command(
     *,
     mcp_manager: Any = None,
 ) -> Any:
+    from vulnclaw.i18n import _  # lazy i18n
     """Execute a built-in classic-REPL slash command.
 
     Returns the (possibly reloaded) config so the caller can keep using it.
@@ -322,6 +337,7 @@ def _print_op_result(result: "experience_ops.OpResult") -> None:
 
 
 def _repl_experience(args: str) -> None:
+    from vulnclaw.cli import experience_ops  # lazy: CLI startup budget
     """Handle ``/experience [list|show|approve|reject|edit] ...`` in the REPL."""
     import shlex
 
@@ -418,6 +434,7 @@ def _parse_edit_flags(
 
 
 def _repl_learn(args: str, config: Any) -> None:
+    from vulnclaw.cli import experience_ops  # lazy: CLI startup budget
     """Handle ``/learn <run-name>`` in the REPL."""
     run_name = args.strip().split()[0] if args.strip() else ""
     if not run_name:
@@ -427,6 +444,7 @@ def _repl_learn(args: str, config: Any) -> None:
 
 
 def _repl_feedback(args: str, config: Any) -> None:
+    from vulnclaw.cli import experience_ops  # lazy: CLI startup budget
     """Handle ``/feedback <run-name> <rating 1-5> <notes...>`` in the REPL."""
     parts = args.strip().split(maxsplit=2)
     if len(parts) < 3:
@@ -444,6 +462,7 @@ def _repl_feedback(args: str, config: Any) -> None:
 
 
 def _repl_switch_language(args: str, agent: Any, config: Any) -> Any:
+    from vulnclaw.i18n import _  # lazy i18n
     """Switch the interface language from the classic REPL."""
     from vulnclaw.cli.tui import _SUPPORTED_LANGUAGES, rebuild_translations
     from vulnclaw.i18n import init_i18n
@@ -467,6 +486,9 @@ def _repl_switch_language(args: str, agent: Any, config: Any) -> Any:
 
 
 def _run_repl() -> None:
+    import asyncio  # lazy: defer ~100 ms cold import
+
+    from vulnclaw.i18n import _  # lazy i18n
     """Run the interactive REPL loop."""
     from vulnclaw.agent.core import AgentCore
     from vulnclaw.mcp.lifecycle import MCPLifecycleManager
@@ -829,6 +851,7 @@ def _run_repl() -> None:
                                 )
 
                             async def after_result(result):
+                                from vulnclaw.i18n import _  # lazy i18n
                                 agent_state = agent.context.state.agent_state.get_summary()
                                 done = agent_state.get("completed")
                                 console.print()
@@ -874,6 +897,7 @@ def _run_repl() -> None:
                             )
 
                         async def after_result(results):
+                            from vulnclaw.i18n import _  # lazy i18n
                             if results:
                                 total_findings = len(agent.session_state.findings)
                                 total_steps = len(agent.session_state.executed_steps)
@@ -966,6 +990,7 @@ def _run_repl() -> None:
 
 
 def _print_help() -> None:
+    from vulnclaw.i18n import _  # lazy i18n
     """Print REPL help."""
     help_text = f"""
  [bold]{_("help.commands")}[/]:
@@ -1010,6 +1035,7 @@ def _print_help() -> None:
 
 
 def _print_status(agent, mcp_manager, target, phase, config) -> None:
+    from vulnclaw.i18n import _  # lazy i18n
     """Print current session status."""
     think_state = "[green]shown[/]" if config.session.show_thinking else "[yellow]hidden[/]"
     phase_label = _localized_phase_label(phase)
@@ -1029,6 +1055,7 @@ def _print_status(agent, mcp_manager, target, phase, config) -> None:
 def _validate_headless_choices(
     scan_mode: str, fail_on: str, scope_mode: str
 ) -> Optional[str]:
+    from vulnclaw import headless  # lazy: CLI startup budget
     """Return an error message for a bad headless choice, else ``None``."""
     if scan_mode not in headless.SCAN_MODES:
         return f"--scan-mode must be one of: {', '.join(headless.SCAN_MODES)}"
@@ -1051,6 +1078,10 @@ def _run_non_interactive(
     classification_holder: dict,
     report_template: str = "pentest",
 ) -> None:
+    import asyncio  # lazy: defer ~100 ms cold import
+
+    from vulnclaw import headless  # lazy: CLI startup budget
+    from vulnclaw.i18n import _  # lazy i18n
     """Drive a headless run: no prompts, structured output, exit-code contract.
 
     Any crash during the scan exits :data:`headless.EXIT_ERROR` (1) — a broken
@@ -1243,18 +1274,18 @@ def run(
         "and a distinct exit code (see --fail-on). Intended for CI.",
     ),
     scan_mode: str = typer.Option(
-        headless.DEFAULT_SCAN_MODE,
+        DEFAULT_SCAN_MODE,
         "--scan-mode",
         help="Depth preset over the effort knobs: quick | standard | deep. "
         "Explicit --max-* flags override the preset.",
     ),
     fail_on: str = typer.Option(
-        headless.DEFAULT_FAIL_ON,
+        DEFAULT_FAIL_ON,
         "--fail-on",
         help="Which finding class trips a nonzero exit: verified | any | never.",
     ),
     scope_mode: str = typer.Option(
-        headless.DEFAULT_SCOPE_MODE,
+        DEFAULT_SCOPE_MODE,
         "--scope-mode",
         help="Scope selection recorded for the run: full (whole surface, current "
         "behaviour) | auto (diff-scope to changed code — consumed by the Target "
@@ -1310,6 +1341,10 @@ def run(
         help="Emit newline-delimited JSON events (status/log/finding/complete) for the Rust TUI",
     ),
 ) -> None:
+    import asyncio  # lazy: defer ~100 ms cold import
+
+    from vulnclaw import headless  # lazy: CLI startup budget
+    from vulnclaw.i18n import _  # lazy i18n
     """Run a full authorized pentest workflow.
 
     Interactive by default. Pass ``--non-interactive`` for a headless CI run: no
@@ -1399,6 +1434,7 @@ def run(
     async def _run():
         async def runner(agent, shared_config):
             # In headless mode suppress streaming thinking so nothing blocks on a TTY.
+            from vulnclaw import headless  # lazy: CLI startup budget
             if stream:
                 from vulnclaw.cli._helpers import JsonlStreamSink
 
@@ -1558,6 +1594,9 @@ def solve(
         False, "--stream", help="Emit newline-delimited JSON events for the Rust TUI"
     ),
 ) -> None:
+    import asyncio  # lazy: defer ~100 ms cold import
+
+    from vulnclaw.i18n import _  # lazy i18n
     """Model-led solve loop; runs until goal, user input, no path, or safety cap."""
     config = load_config()
     if not has_llm_credentials(config.llm):
@@ -1714,6 +1753,7 @@ def persistent(
     force_fresh: bool = typer.Option(False, "--force-fresh", help="Start a fresh run"),
     no_import: bool = typer.Option(False, "--no-import", help="Do not import legacy state"),
 ) -> None:
+    import asyncio  # lazy: defer ~100 ms cold import
     """Run a persistent authorized pentest across multiple cycles."""
     from vulnclaw.agent.core import PersistentCycleResult
 
@@ -1907,6 +1947,7 @@ def recon(
         False, "--stream", help="Emit newline-delimited JSON events for the Rust TUI"
     ),
 ) -> None:
+    import asyncio  # lazy: defer ~100 ms cold import
     """Run reconnaissance only."""
     _require_llm_credentials()
     run_context = _run_context_kwargs(
@@ -2016,6 +2057,7 @@ def scan(
         False, "--stream", help="Emit newline-delimited JSON events for the Rust TUI"
     ),
 ) -> None:
+    import asyncio  # lazy: defer ~100 ms cold import
     """Run vulnerability scanning only."""
     _require_llm_credentials()
     run_context = _run_context_kwargs(
@@ -2160,6 +2202,9 @@ def network_scan(
         False, "--stream", help="Emit newline-delimited JSON events for the Rust TUI"
     ),
 ) -> None:
+    import asyncio  # lazy: defer ~100 ms cold import
+
+    from vulnclaw.i18n import _  # lazy i18n
     """运行基于 nmap 的网络扫描，并对薄弱环节进行跟进。"""
     normalized_profile = profile.strip().lower()
     if normalized_profile not in {"adaptive", "fast", "thorough", "stealth"}:
@@ -2352,6 +2397,7 @@ def exploit(
         False, "--stream", help="Emit newline-delimited JSON events for the Rust TUI"
     ),
 ) -> None:
+    import asyncio  # lazy: defer ~100 ms cold import
     """Run exploitation only."""
     _require_llm_credentials()
     run_context = _run_context_kwargs(
@@ -2484,6 +2530,7 @@ def report(
 
 
 def _print_cli_manual(topic: Optional[str], output_format: str) -> None:
+    from vulnclaw.cli.manual import available_topics, render_manual  # lazy: CLI startup budget
     """Print the packaged CLI manual, normalizing user-facing errors."""
     try:
         console.out(render_manual(output_format, topic), end="")
@@ -2647,6 +2694,7 @@ def config_provider(
 
 @app.command()
 def init() -> None:
+    from vulnclaw.i18n import _  # lazy i18n
     """Initialize VulnClaw config."""
     from vulnclaw.config.settings import ensure_dirs
 
@@ -2780,6 +2828,20 @@ def doctor(
 
     if is_offline():
         console.print("[yellow]Offline mode: online LLM/provider probes are disabled.[/]")
+
+    # Offline readiness: KB corpus present so retrieval works without network.
+    try:
+        from vulnclaw.kb.store import KnowledgeStore
+
+        kb_stats = KnowledgeStore().get_stats()
+        kb_total = sum(kb_stats.values())
+        kb_line = (
+            f"[green]ready[/] ({kb_total} entries)" if kb_total
+            else "[yellow]empty[/] — run [bold]vulnclaw kb update[/] or [bold]vulnclaw kb restore <bundle>[/]"
+        )
+    except Exception as exc:  # defensive: doctor must not raise
+        kb_line = f"[red]check failed[/]: {exc}"
+    console.print(f"  KB corpus: {kb_line}")
 
     # 修改者: Nyaecho
     # 修改时间: 2026-07-08
@@ -3068,6 +3130,7 @@ def plugins_run(
     ),
     as_json: bool = typer.Option(False, "--json", help="Print the raw PluginResult as JSON"),
 ) -> None:
+    import asyncio  # lazy: defer ~100 ms cold import
     """Run a plugin against supplied data (builtin plugins only analyze provided input)."""
     import json as _json
     from pathlib import Path
@@ -3167,8 +3230,46 @@ def kb_update() -> None:
     console.print(f"    Categories: {category_summary or 'empty'}")
 
 
+@kb_app.command("pack")
+def kb_pack(
+    output: str = typer.Argument(..., help="Destination .json bundle path."),
+) -> None:
+    """Pack the local knowledge base into one JSON bundle for offline transfer."""
+    from pathlib import Path as _Path
+
+    from vulnclaw.kb.pack import pack_kb, write_bundle
+    from vulnclaw.kb.store import KnowledgeStore
+
+    bundle = pack_kb(KnowledgeStore())
+    destination = write_bundle(bundle, _Path(output))
+    console.print(
+        f"[+] Packed {bundle['entry_count']} entries -> {destination} "
+        f"({destination.stat().st_size} bytes)"
+    )
+
+
+@kb_app.command("restore")
+def kb_restore(
+    source: str = typer.Argument(..., help="Path to a bundle produced by `vulnclaw kb pack`."),
+) -> None:
+    """Restore a packed KB bundle into the local knowledge base (offline import)."""
+    from pathlib import Path as _Path
+
+    from vulnclaw.kb.pack import load_bundle, restore_kb
+    from vulnclaw.kb.store import KnowledgeStore
+
+    try:
+        bundle = load_bundle(_Path(source))
+        added, skipped = restore_kb(KnowledgeStore(), bundle)
+    except ValueError as exc:
+        console.print(f"[!] {exc}")
+        raise typer.Exit(1) from exc
+    console.print(f"[+] Restored {added} entries ({skipped} skipped) from {source}")
+
+
 @kb_app.command("status")
 def kb_status() -> None:
+    from vulnclaw.i18n import _  # lazy i18n
     """Show the knowledge base retrieval backend status."""
     from vulnclaw.kb.retriever import KnowledgeRetriever, RetrieverStatus
     from vulnclaw.kb.store import KnowledgeStore
@@ -3206,6 +3307,7 @@ def learn(
     run_name: str = typer.Argument(..., help="Completed run name to distill into pending lessons"),
     runs_dir: Optional[str] = typer.Option(None, "--runs-dir", help="Run-directory root"),
 ) -> None:
+    from vulnclaw.cli import experience_ops  # lazy: CLI startup budget
     """Distill an existing run on demand (for reruns and backfill)."""
 
     _emit_op_result(
@@ -3222,6 +3324,7 @@ def feedback(
     notes: str = typer.Option(..., "--notes", "-n", help="Operator notes for lesson distillation"),
     runs_dir: Optional[str] = typer.Option(None, "--runs-dir", help="Run-directory root"),
 ) -> None:
+    from vulnclaw.cli import experience_ops  # lazy: CLI startup budget
     """Attach or update an operator assessment for a completed run."""
 
     _emit_op_result(
@@ -3232,6 +3335,7 @@ def feedback(
 
 
 def _print_cli_manual(topic: Optional[str], output_format: str) -> None:
+    from vulnclaw.cli.manual import available_topics, render_manual  # lazy: CLI startup budget
     """Print the packaged CLI manual, normalizing user-facing errors."""
     try:
         console.out(render_manual(output_format, topic), end="")
@@ -3255,24 +3359,28 @@ def _emit_op_result(result: "experience_ops.OpResult") -> None:
 @experience_app.command("list")
 @experience_app.command("review")
 def experience_list() -> None:
+    from vulnclaw.cli import experience_ops  # lazy: CLI startup budget
     """List lessons awaiting human review."""
     _emit_op_result(experience_ops.render_pending_lessons())
 
 
 @experience_app.command("show")
 def experience_show(lesson_id: str = typer.Argument(..., help="Lesson id")) -> None:
+    from vulnclaw.cli import experience_ops  # lazy: CLI startup budget
     """Show full lesson text and evidence provenance."""
     _emit_op_result(experience_ops.render_lesson(lesson_id))
 
 
 @experience_app.command("approve")
 def experience_approve(lesson_id: str = typer.Argument(..., help="Lesson id")) -> None:
+    from vulnclaw.cli import experience_ops  # lazy: CLI startup budget
     """Approve a lesson so future matching runs may retrieve it."""
     _emit_op_result(experience_ops.set_lesson_status(lesson_id, "approved"))
 
 
 @experience_app.command("reject")
 def experience_reject(lesson_id: str = typer.Argument(..., help="Lesson id")) -> None:
+    from vulnclaw.cli import experience_ops  # lazy: CLI startup budget
     """Reject a lesson so it cannot influence future runs."""
     _emit_op_result(experience_ops.set_lesson_status(lesson_id, "rejected"))
 
@@ -3285,6 +3393,7 @@ def experience_edit(
         None, "--lesson", help="Replacement transferable instruction"
     ),
 ) -> None:
+    from vulnclaw.cli import experience_ops  # lazy: CLI startup budget
     """Amend context and/or lesson text without changing provenance or status."""
     _emit_op_result(
         experience_ops.edit_lesson(lesson_id, context=context, lesson=lesson_text)
@@ -3628,6 +3737,8 @@ def _resume_saved_run(
     runs_dir: Optional[str] = None,
     repair: bool = False,
 ) -> None:
+    import asyncio  # lazy: defer ~100 ms cold import
+
     from vulnclaw.run_context import RunCorruptError, load_run_context
 
     config = load_config()
