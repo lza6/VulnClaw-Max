@@ -778,7 +778,7 @@ git show 2d8ba99:计划书/下一步改进指南.md > /tmp/guide.md
 | soak 1h（原始） | 717 tasks，RSS 101.1→64.0 MB，峰值 158.2 MB，无子进程；旧脚本把被保留策略裁掉的任务 404 误判为“非终态”，已在脚本修复，10m 复跑断言通过 |
 | wheel/sdist | `vulnclaw-0.5.0-py3-none-any.whl` + `.tar.gz`；wheel 内含 `vulnclaw/web/dist/index.html`、`vulnclaw/kb/default_bundle.json`、`vulnclaw/web/event_names.py` |
 | 公开站 | `/`、`/sitemap.xml`、`/robots.txt` 均 200 |
-| PyPI | 仓库 0.5.0；发布由 tag 触发的 `release.yml` 执行，当前尚未产生 0.5.0 线上版本 |
+| PyPI / GHCR | 仓库 0.5.0；GHCR `ghcr.io/lza6/vulnclaw-max:v0.5.0-final`、`:latest` 已推送；GitHub Release `v0.5.0-final` 已创建；PyPI trusted publisher 未配置，`release.yml` 在 PyPI step 报 `invalid-publisher`，0.5.0 尚未上 PyPI |
 
 ### 10.2 G-01～G-18 状态
 
@@ -794,7 +794,7 @@ git show 2d8ba99:计划书/下一步改进指南.md > /tmp/guide.md
 | G-08 | **完成** | 预置 `vulnclaw/kb/default_bundle.json`；`ensure_default_bundle()` 在空 KB 首次使用时自动 restore；doctor 同步；`tests/kb/test_kb_pack.py`；wheel 内含 bundle |
 | G-09 | **完成** | `scripts/bench_web_state.py` + `tests/performance/test_benchmarks.py`（`slow` marker）；四阈值断言 |
 | G-10 | **部分** | 120s/10m 断言通过；1h 原始运行内存稳定且无孤儿；**24h 仍未跑**，作为发布前机器时间门禁 |
-| G-11 | **已准备，待执行发布** | PyPI trusted publishing step、GHCR build/push、Dockerfile HEALTHCHECK、security PR path、README badge 0.5.0；实际 PyPI/GHCR 需要 tag 与仓库/PyPI 侧授权配置 |
+| G-11 | **部分：GHCR/Release 完成，PyPI 阻塞** | PyPI trusted publishing step、GHCR build/push、Dockerfile HEALTHCHECK、security PR path 已落地；`v0.5.0-final` tag 触发 Docker 成功并推送 GHCR，GitHub Release 已创建；PyPI 侧缺少 trusted publisher 配置，release workflow 在 PyPI step 失败，0.5.0 未上 PyPI |
 | G-12 | **完成** | `openTaskStream` 增加 `onOpen/onError`；App 显示重连横幅；`e2e/stream.spec.ts` |
 | G-13 | **完成** | `@vitest/coverage-v8`；`test:coverage`；阈值 lines/functions/statements 40、utils 90；实测 50.41% |
 | G-14 | **完成** | `responsive.spec.ts`（768/1024）、`keyboard.spec.ts`（Tab/焦点归还）、`console.spec.ts`（0 console error） |
@@ -808,7 +808,7 @@ git show 2d8ba99:计划书/下一步改进指南.md > /tmp/guide.md
 | 事项 | 原因 | 下一步 |
 |------|------|--------|
 | 24h soak | 需要连续机器时间，本轮只完成 1h 原始运行 + 10m 断言复跑 | 发布前跑 `--duration 86400 --assert`，归档报告 |
-| PyPI 0.5.0 / GHCR 实际发布 | 需要 tag 触发 GitHub Actions，且 PyPI trusted publisher / GHCR 权限需仓库侧配置 | push `v0.5.0` tag，观察 `release.yml` / `docker.yml`；失败时按日志补权限 |
+| PyPI 0.5.0 实际发布 | PyPI 项目 `vulnclaw` 未为本仓库配置 trusted publisher；`release.yml` 报 `invalid-publisher` | 在 PyPI 添加 trusted publisher（repo `lza6/VulnClaw-Max`，workflow `release.yml`，tag/环境按 PyPI 配置），或提供 API token；然后重跑 release workflow |
 | Lighthouse 与触摸拖拽 | 本轮未跑真实审计通道/移动端上下文 | 本地 `npx lighthouse` + Playwright `hasTouch` |
 | 报告流式写 | 现有报告在内存中拼接，大小有界；伪流式没有收益 | 大报告场景出现后再做 |
 | 尺度长尾 | 507 条旧规则未逐条回填 `--space-*` / `--text-*` | 按页面分片，新增规则已被 token 预算测试约束 |
@@ -820,6 +820,9 @@ git show 2d8ba99:计划书/下一步改进指南.md > /tmp/guide.md
 dist/vulnclaw-0.5.0-py3-none-any.whl
 dist/vulnclaw-0.5.0.tar.gz
 ```
+
+- GitHub Release：https://github.com/lza6/VulnClaw-Max/releases/tag/v0.5.0-final
+- GHCR：`ghcr.io/lza6/vulnclaw-max:v0.5.0-final`、`ghcr.io/lza6/vulnclaw-max:sha-2b9dcb8`、`ghcr.io/lza6/vulnclaw-max:latest`
 
 wheel 校验（`python scripts/verify_dist_artifacts.py`）通过；包内包含 Web UI、默认 KB bundle 与事件名清单。
 
