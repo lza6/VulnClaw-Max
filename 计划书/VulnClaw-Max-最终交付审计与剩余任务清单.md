@@ -780,6 +780,10 @@ git show 2d8ba99:计划书/下一步改进指南.md > /tmp/guide.md
 | Lighthouse（公开站） | Performance **100** / Accessibility **100** / SEO **100** |
 | Lighthouse（本地 Web UI） | Performance **99** / Accessibility **100**；LCP 2.1s、CLS 0、TBT 10ms |
 | 公开站 | `/`、`/sitemap.xml`、`/robots.txt` 均 200 |
+| GitHub CI（main） | success（ruff / pytest / tsc / lint / unit tests / E2E matrix） |
+| Release Preflight（v0.5.0-final） | success |
+| Docker build（v0.5.0-final） | success；manifest 已推送 GHCR |
+| Release（v0.5.0-final） | failure：仅 PyPI trusted publisher 步骤失败，构建与 preflight 成功 |
 | PyPI / GHCR | 仓库 0.5.0；GHCR `ghcr.io/lza6/vulnclaw-max:v0.5.0-final`、`:latest` 已推送；GitHub Release `v0.5.0-final` 已创建；PyPI trusted publisher 未配置，`release.yml` 在 PyPI step 报 `invalid-publisher`，0.5.0 尚未上 PyPI |
 
 ### 10.2 G-01～G-18 状态
