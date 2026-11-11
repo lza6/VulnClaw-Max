@@ -8,7 +8,7 @@
     <meta name="theme-color" content="#f4f8fe" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <title>VulnClaw Web UI</title>
-    <script src="/theme-init.js"></script>
+    <script>!function(){try{var r=localStorage.getItem("vulnclaw.ui.preferences"),p=r?JSON.parse(r).theme:"auto";if(p!=="light"&&p!=="dark")p=matchMedia&&matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light";document.documentElement.dataset.theme=p;var m=document.querySelector('meta[name="theme-color"]');m&&m.setAttribute("content",p==="dark"?"#0b1220":"#f4f8fe")}catch(e){}}();</script>
     <script type="module" src="/src/main.tsx"></script>
   </head>
   <body>

@@ -93,6 +93,7 @@ try:
         StreamingResponse,
     )
     from starlette.middleware.base import BaseHTTPMiddleware
+    from starlette.middleware.gzip import GZipMiddleware
 
     FASTAPI_AVAILABLE = True
 except ImportError:  # pragma: no cover - exercised in CLI dry-run and tests
@@ -104,6 +105,7 @@ except ImportError:  # pragma: no cover - exercised in CLI dry-run and tests
     RedirectResponse = None  # type: ignore[assignment]
     StreamingResponse = None  # type: ignore[assignment]
     BaseHTTPMiddleware = object  # type: ignore[assignment,misc]
+    GZipMiddleware = None  # type: ignore[assignment]
     FASTAPI_AVAILABLE = False
 
 
@@ -162,7 +164,14 @@ def _serve_spa(request, file_path: Path):  # type: ignore[no-untyped-def]
         )
         attach_session_cookie(response, token)
         return response
-    return FileResponse(file_path)
+    headers = {
+        "Cache-Control": (
+            "public, max-age=31536000, immutable"
+            if file_path.parent.name == "assets"
+            else "no-cache"
+        )
+    }
+    return FileResponse(file_path, headers=headers)
 
 
 @contextmanager
@@ -224,6 +233,8 @@ def create_app():
             await task_manager.shutdown()
 
     app = FastAPI(title="VulnClaw Web UI", version=__version__, lifespan=lifespan)
+    if GZipMiddleware is not None:
+        app.add_middleware(GZipMiddleware, minimum_size=500)
     app.add_middleware(SecurityHeadersMiddleware)
     app.add_middleware(AuthMiddleware)
 
@@ -652,7 +663,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         response.headers.setdefault(
             "Content-Security-Policy",
             "default-src 'self'; "
-            "script-src 'self'; "
+            "script-src 'self' 'sha256-jK9Ul3CPvNc2QPrZap1dMEr1Z7zRKh8xtOMuHowBMGM='; "
             "style-src 'self' 'unsafe-inline'; "
             "img-src 'self' data: blob:; "
             "connect-src 'self'; "

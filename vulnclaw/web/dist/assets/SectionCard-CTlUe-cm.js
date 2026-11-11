@@ -1,0 +1,1 @@
+import{j as s}from"./index-uLHjBwHc.js";function a({title:r,copy:e,children:c,aside:i}){return s.jsxs("section",{className:"section-card",children:[s.jsxs("header",{className:"section-card-header",children:[s.jsxs("div",{children:[s.jsx("h3",{children:r}),e&&s.jsx("p",{children:e})]}),i]}),c]})}export{a as S};

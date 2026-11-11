@@ -109,3 +109,42 @@ test("3D scene keeps a 50fps browser frame budget while dragging", async ({ page
   expect(fps).toBeGreaterThanOrEqual(50);
   await page.screenshot({ path: "e2e-artifacts/attack-surface-fps.png", fullPage: true });
 });
+
+test.describe("touch input", () => {
+  test.use({ hasTouch: true, viewport: { width: 390, height: 844 } });
+
+  test("touch drag on the 3D canvas keeps the scene mounted", async ({ page }) => {
+    seedTarget();
+    await openRiskPage(page);
+    const panel = page.locator(".attack-surface");
+    await panel.getByRole("button").click();
+    const canvas = panel.locator("canvas");
+    await expect(canvas).toBeVisible({ timeout: 20_000 });
+
+    await page.evaluate(() => {
+      const element = document.querySelector(".attack-surface canvas") as HTMLCanvasElement | null;
+      if (!element) return;
+      const rect = element.getBoundingClientRect();
+      const fire = (type: string, x: number, y: number) =>
+        element.dispatchEvent(
+          new PointerEvent(type, {
+            clientX: rect.left + x,
+            clientY: rect.top + y,
+            bubbles: true,
+            pointerId: 7,
+            pointerType: "touch",
+            isPrimary: true,
+            buttons: 1,
+          }),
+        );
+      fire("pointerdown", rect.width / 2, rect.height / 2);
+      fire("pointermove", rect.width / 2 + 40, rect.height / 2 + 10);
+      fire("pointermove", rect.width / 2 + 80, rect.height / 2 + 20);
+      fire("pointerup", rect.width / 2 + 80, rect.height / 2 + 20);
+    });
+
+    await expect(canvas).toBeVisible();
+    await expect(panel.getByRole("table")).toBeVisible();
+    await page.screenshot({ path: "e2e-artifacts/attack-surface-touch.png", fullPage: true });
+  });
+});

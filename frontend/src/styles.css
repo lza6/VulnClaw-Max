@@ -2137,6 +2137,7 @@ body {
 }
 
 .workspace {
+  min-height: calc(100vh - 8rem);
   position: relative;
   z-index: 0;
   gap: 14px;
@@ -2905,6 +2906,7 @@ body {
   }
 
   .workspace {
+  min-height: calc(100vh - 8rem);
     padding: 12px max(12px, env(safe-area-inset-right)) max(24px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
   }
 

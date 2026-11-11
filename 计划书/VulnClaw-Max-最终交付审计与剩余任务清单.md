@@ -777,6 +777,8 @@ git show 2d8ba99:计划书/下一步改进指南.md > /tmp/guide.md
 | soak 10m | 120 tasks，RSS 100.8→106.8 MB，增长 **5.95%**，断言通过，无子进程 |
 | soak 1h（原始） | 717 tasks，RSS 101.1→64.0 MB，峰值 158.2 MB，无子进程；旧脚本把被保留策略裁掉的任务 404 误判为“非终态”，已在脚本修复，10m 复跑断言通过 |
 | wheel/sdist | `vulnclaw-0.5.0-py3-none-any.whl` + `.tar.gz`；wheel 内含 `vulnclaw/web/dist/index.html`、`vulnclaw/kb/default_bundle.json`、`vulnclaw/web/event_names.py` |
+| Lighthouse（公开站） | Performance **100** / Accessibility **100** / SEO **100** |
+| Lighthouse（本地 Web UI） | Performance **99** / Accessibility **100**；LCP 2.1s、CLS 0、TBT 10ms |
 | 公开站 | `/`、`/sitemap.xml`、`/robots.txt` 均 200 |
 | PyPI / GHCR | 仓库 0.5.0；GHCR `ghcr.io/lza6/vulnclaw-max:v0.5.0-final`、`:latest` 已推送；GitHub Release `v0.5.0-final` 已创建；PyPI trusted publisher 未配置，`release.yml` 在 PyPI step 报 `invalid-publisher`，0.5.0 尚未上 PyPI |
 
@@ -798,7 +800,7 @@ git show 2d8ba99:计划书/下一步改进指南.md > /tmp/guide.md
 | G-12 | **完成** | `openTaskStream` 增加 `onOpen/onError`；App 显示重连横幅；`e2e/stream.spec.ts` |
 | G-13 | **完成** | `@vitest/coverage-v8`；`test:coverage`；阈值 lines/functions/statements 40、utils 90；实测 50.41% |
 | G-14 | **完成** | `responsive.spec.ts`（768/1024）、`keyboard.spec.ts`（Tab/焦点归还）、`console.spec.ts`（0 console error） |
-| G-15 | **部分** | reduce 下静态 SVG 拓扑；canvas `aria-hidden` + 容器 `role="img"`；E2E 断帧预算 ≥50fps；**Lighthouse 与触摸拖拽仍未跑** |
+| G-15 | **完成** | reduce 下静态 SVG 拓扑；canvas `aria-hidden` + 容器 `role="img"`；E2E 断帧预算 ≥50fps；触摸拖拽 E2E；公开站 Lighthouse 100/100/100，本地 Web UI 99/100（LCP 2.1s、CLS 0） |
 | G-16 | **部分** | 页面级 `React.lazy`（首屏 123.72 kB）；`/api/tasks/{id}/events?after_seq=`；design-token 预算测试；**报告流式写未做（当前报告有界，单次写可接受）**、尺度长尾仍按页面回填 |
 | G-17 | **完成** | `vulnclaw/web/event_names.py` + `frontend/src/api/taskEvents.ts`；前端按共享清单注册；`tests/web/test_event_names.py` |
 | G-18 | **完成** | `/api/version`、`/api/storage`、`/api/gc`；Settings 磁盘占用/预览/清理；`vulnclaw/gc.py` 抽取 + CLI 复用；24 条 lint warning 保留（0 error，不阻塞） |
@@ -809,7 +811,7 @@ git show 2d8ba99:计划书/下一步改进指南.md > /tmp/guide.md
 |------|------|--------|
 | 24h soak | 需要连续机器时间，本轮只完成 1h 原始运行 + 10m 断言复跑 | 发布前跑 `--duration 86400 --assert`，归档报告 |
 | PyPI 0.5.0 实际发布 | PyPI 项目 `vulnclaw` 未为本仓库配置 trusted publisher；`release.yml` 报 `invalid-publisher` | 在 PyPI 添加 trusted publisher（repo `lza6/VulnClaw-Max`，workflow `release.yml`，tag/环境按 PyPI 配置），或提供 API token；然后重跑 release workflow |
-| Lighthouse 与触摸拖拽 | 本轮未跑真实审计通道/移动端上下文 | 本地 `npx lighthouse` + Playwright `hasTouch` |
+| ~~Lighthouse 与触摸拖拽~~ | 已跑：公开站 100/100/100，本地 99/100，触摸拖拽 E2E 通过 | 已关闭 |
 | 报告流式写 | 现有报告在内存中拼接，大小有界；伪流式没有收益 | 大报告场景出现后再做 |
 | 尺度长尾 | 507 条旧规则未逐条回填 `--space-*` / `--text-*` | 按页面分片，新增规则已被 token 预算测试约束 |
 | 24 条 ESLint warning | 主要是 `set-state-in-effect` 与 `exhaustive-deps`，0 error | 后续按页面清理，不阻塞发布 |
