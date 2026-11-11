@@ -14,6 +14,26 @@ from typing import Any
 from vulnclaw.kb.store import KnowledgeStore
 
 BUNDLE_VERSION = 1
+DEFAULT_BUNDLE_PATH = Path(__file__).with_name("default_bundle.json")
+
+
+def ensure_default_bundle(store: KnowledgeStore) -> int:
+    """Restore the bundled KB when the local store is empty.
+
+    Returns the number of entries restored (0 when the store already has data
+    or the packaged bundle is missing). This is what makes an offline install
+    useful before the user has run ``vulnclaw kb update``.
+    """
+    try:
+        if sum(store.get_stats().values()) > 0:
+            return 0
+        if not DEFAULT_BUNDLE_PATH.is_file():
+            return 0
+        bundle = load_bundle(DEFAULT_BUNDLE_PATH)
+        added, _skipped = restore_kb(store, bundle)
+        return added
+    except (OSError, ValueError, TypeError):
+        return 0
 
 
 def pack_kb(store: KnowledgeStore) -> dict[str, Any]:

@@ -51,6 +51,9 @@ EXECUTIVE_TEMPLATE = """\
 ### {{ loop.index }}. {{ finding.title }} — [{{ finding.severity }}]
 
 - **类别**: {{ finding.vuln_type or "未分类" }}
+{% if finding.triage_status and finding.triage_status != "new" %}
+- **处置状态**: {{ finding.triage_status }}{% if finding.assignee %}（负责人: {{ finding.assignee }}）{% endif %}
+{% endif %}
 - **证据等级**: {{ finding.evidence_level or "L1" }}
 - **业务影响**: {{ finding.description or "无" }}
 - **修复建议**: {{ finding.remediation or "请根据漏洞类型制定修复计划" }}
@@ -131,6 +134,9 @@ No verified findings were recorded for this assessment; the attack surface is su
 ### {{ loop.index }}. {{ finding.title }} — [{{ finding.severity }}]
 
 - **Category**: {{ finding.vuln_type or "Uncategorized" }}
+{% if finding.triage_status and finding.triage_status != "new" %}
+- **Triage Status**: {{ finding.triage_status }}{% if finding.assignee %} (assignee: {{ finding.assignee }}){% endif %}
+{% endif %}
 - **Evidence Level**: {{ finding.evidence_level or "L1" }}
 - **Business Impact**: {{ finding.description or "None" }}
 - **Remediation**: {{ finding.remediation or "Plan remediation appropriate to the vulnerability type." }}
@@ -245,6 +251,9 @@ CTF_TEMPLATE = """\
 ### {{ loop.index }}. {{ finding.title }} — [{{ finding.severity }}]
 
 - **类型**: {{ finding.vuln_type or "未分类" }}
+{% if finding.triage_status and finding.triage_status != "new" %}
+- **处置状态**: {{ finding.triage_status }}{% if finding.assignee %}（负责人: {{ finding.assignee }}）{% endif %}
+{% endif %}
 - **CVE**: {{ finding.cve or "N/A" }}
 - **证据等级**: {{ finding.evidence_level or "L1" }}
 - **位置 / URL**: {{ finding.location_summary or "未提取" }}
@@ -361,6 +370,9 @@ No executed steps recorded.
 ### {{ loop.index }}. {{ finding.title }} — [{{ finding.severity }}]
 
 - **Type**: {{ finding.vuln_type or "Uncategorized" }}
+{% if finding.triage_status and finding.triage_status != "new" %}
+- **Triage Status**: {{ finding.triage_status }}{% if finding.assignee %} (assignee: {{ finding.assignee }}){% endif %}
+{% endif %}
 - **CVE**: {{ finding.cve or "N/A" }}
 - **Evidence Level**: {{ finding.evidence_level or "L1" }}
 - **Location / URL**: {{ finding.location_summary or "Not extracted" }}

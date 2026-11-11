@@ -193,6 +193,19 @@ class LLMConfig(BaseModel):
     reasoning_effort: str = Field(
         default="high", description="Reasoning effort level (OpenAI o-series only)"
     )
+    input_cost_per_million: float = Field(
+        default=0.0,
+        ge=0.0,
+        description="Input-token price per million tokens, used for cost estimates (0 = unknown).",
+    )
+    output_cost_per_million: float = Field(
+        default=0.0,
+        ge=0.0,
+        description="Output-token price per million tokens, used for cost estimates (0 = unknown).",
+    )
+    cost_currency: str = Field(
+        default="USD", description="Currency label for cost estimates (display only)."
+    )
 
     def key_pool(self) -> list[str]:
         """Return the ordered, de-blanked list of usable static API keys.
@@ -231,6 +244,13 @@ class MCPServerConfig(BaseModel):
     priority: int = Field(default=1, description="Priority: 0=critical, 1=normal, 2=optional")
     transport: MCPTransportConfig = Field(description="Transport configuration")
     description: str = Field(default="", description="Human-readable description")
+    allowed_tools: list[str] = Field(
+        default_factory=list,
+        description=(
+            "Optional tool whitelist. Empty means every tool the server exposes is "
+            "allowed; otherwise only these tool names are registered and callable."
+        ),
+    )
 
 
 class MCPServersConfig(BaseModel):

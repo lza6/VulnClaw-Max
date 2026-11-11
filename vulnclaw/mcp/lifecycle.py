@@ -423,6 +423,36 @@ class MCPLifecycleManager(ProbeMixin):
             rendered = str(structured)
         return rendered, structured if isinstance(structured, dict) else None, is_error
 
+    def _tool_allowed(self, server_name: str, tool_name: str) -> bool:
+        """Whether the configured whitelist permits this tool (empty = all)."""
+        config = self.config.mcp.servers.get(server_name)
+        allowed = list(getattr(config, "allowed_tools", ()) or ())
+        return not allowed or tool_name in allowed
+
+    def _audit_tool_denial(self, server_name: str, tool_name: str) -> None:
+        """Persist a denied MCP tool call so the boundary is auditable."""
+        try:
+            from datetime import datetime
+
+            from vulnclaw.config.settings import CONFIG_DIR
+
+            CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+            with (CONFIG_DIR / "mcp_audit.jsonl").open("a", encoding="utf-8") as handle:
+                handle.write(
+                    json.dumps(
+                        {
+                            "timestamp": datetime.now().isoformat(),
+                            "event": "mcp_tool_denied",
+                            "server": server_name,
+                            "tool": tool_name,
+                        },
+                        ensure_ascii=False,
+                    )
+                    + "\n"
+                )
+        except OSError:
+            pass
+
     def _register_runtime_tools(self, server_name: str, tools: list[dict[str, Any]]) -> None:
         """Replace static known tools with tools discovered from the live MCP server."""
         self.registry.clear_server_tools(server_name)
@@ -432,7 +462,7 @@ class MCPLifecycleManager(ProbeMixin):
         for tool in tools:
             runtime_name = str(tool.get("name", ""))
             public_name = self._public_runtime_tool_name(server_name, runtime_name)
-            if not public_name:
+            if not public_name or not self._tool_allowed(server_name, public_name):
                 continue
             if public_name != runtime_name:
                 self._runtime_tool_aliases[(server_name, public_name)] = runtime_name
@@ -744,6 +774,17 @@ class MCPLifecycleManager(ProbeMixin):
         if ttype == "stdio":
             return stdio_client is not None and ClientSession is not None
         return False
+
+    def start_server(self, name: str) -> bool:
+        """Start one configured server (public wrapper for control-plane callers)."""
+        config = self.config.mcp.servers.get(name)
+        if config is None:
+            return False
+        return self._start_server(name, config)
+
+    async def restart_server(self, name: str) -> bool:
+        """Restart one configured server from the current event loop."""
+        return await self._restart_server(name)
 
     def _is_process_alive(self, server_name: str) -> bool:
         """Return True if the server's tracked subprocess (if any) is still running.
@@ -1105,7 +1146,8 @@ class MCPLifecycleManager(ProbeMixin):
 
         tools = KNOWN_TOOLS.get(server_name, [])
         for tool in tools:
-            self.registry.register_tool(server_name, tool)
+            if self._tool_allowed(server_name, str(tool.get("name", ""))):
+                self.registry.register_tool(server_name, tool)
 
     def _graceful_terminate(self, proc: subprocess.Popen) -> None:
         """Synchronously stop a process: terminate, wait, then kill if still alive.
@@ -1234,6 +1276,11 @@ class MCPLifecycleManager(ProbeMixin):
         server_name = self.registry.get_server_for_tool(tool_name)
         if not server_name:
             raise ValueError(f"Unknown tool: {tool_name}")
+        if not self._tool_allowed(server_name, tool_name):
+            self._audit_tool_denial(server_name, tool_name)
+            raise PermissionError(
+                f"MCP tool {tool_name!r} is not in the allowed_tools whitelist for {server_name!r}"
+            )
 
         async with self._server_call_gate(server_name):
             # Liveness gate: if a tracked subprocess died, attempt a bounded restart

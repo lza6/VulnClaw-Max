@@ -72,3 +72,50 @@ def test_prepare_task_reads_project_env(monkeypatch):
     request = TaskCreateRequest(command="recon", target="example.com")
     prepare_task(request)
     assert request.options.project == "acme"
+
+
+def test_target_moves_between_projects(monkeypatch, tmp_path):
+    import vulnclaw.web.services.project_service as service
+
+    monkeypatch.setattr(service, "PROJECTS_DIR", tmp_path / "projects")
+    service.create_project("Acme", targets=["https://example.com"])
+    service.create_project("Other")
+
+    moved = service.assign_target("other", "https://example.com")
+
+    assert moved is not None
+    assert service.find_project_for_target("https://example.com") == "other"
+    assert "https://example.com" not in service.get_project("acme").targets
+    assert "https://example.com" in service.get_project("other").targets
+
+
+def test_unassign_target_removes_from_project(monkeypatch, tmp_path):
+    import vulnclaw.web.services.project_service as service
+
+    monkeypatch.setattr(service, "PROJECTS_DIR", tmp_path / "projects")
+    service.create_project("Acme", targets=["https://example.com"])
+
+    assert service.unassign_target("https://example.com") is True
+    assert service.find_project_for_target("https://example.com") is None
+    assert service.get_project("acme").targets == []
+
+
+def test_target_list_can_filter_by_project(monkeypatch, tmp_path):
+    import vulnclaw.target_state.store as store
+    import vulnclaw.web.services.project_service as project_service
+    import vulnclaw.web.services.target_service as target_service
+    from vulnclaw.agent.context import SessionState
+
+    targets_dir = tmp_path / "targets"
+    monkeypatch.setattr(store, "TARGETS_DIR", targets_dir)
+    monkeypatch.setattr(target_service, "TARGETS_DIR", targets_dir)
+    monkeypatch.setattr(project_service, "PROJECTS_DIR", tmp_path / "projects")
+
+    for target in ("https://a.example", "https://b.example", "https://c.example"):
+        store.save_target_state(target, SessionState(target=target), command="recon")
+    project_service.create_project("Acme", targets=["https://a.example"])
+    project_service.create_project("Other", targets=["https://b.example"])
+
+    assert [item.target for item in target_service.list_targets(project="acme")] == ["https://a.example"]
+    unassigned = {item.target for item in target_service.list_targets(project="")}
+    assert unassigned == {"https://c.example"}

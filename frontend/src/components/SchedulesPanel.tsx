@@ -14,13 +14,25 @@ interface Draft {
   target: string;
   command: ScheduleCommand;
   minutes: string;
+  mode: "interval" | "cron";
+  cron: string;
   enabled: boolean;
   options: string;
   editing: boolean;
 }
 
 function emptyDraft(): Draft {
-  return { name: "", target: "", command: "recon", minutes: "60", enabled: true, options: "", editing: true };
+  return {
+    name: "",
+    target: "",
+    command: "recon",
+    minutes: "60",
+    mode: "interval",
+    cron: "0 2 * * *",
+    enabled: true,
+    options: "",
+    editing: true,
+  };
 }
 
 export function SchedulesPanel() {
@@ -53,16 +65,22 @@ export function SchedulesPanel() {
       target: job.target,
       command: job.command,
       minutes: String(Math.round(job.interval_seconds / 60)),
+      mode: job.cron ? "cron" : "interval",
+      cron: job.cron ?? "0 2 * * *",
       enabled: job.enabled,
       options: Object.keys(job.options ?? {}).length ? JSON.stringify(job.options) : "",
       editing: false,
     });
   }
 
-  function parseDraft(current: Draft): { intervalSeconds: number; options: Record<string, unknown> } | null {
+  function parseDraft(current: Draft): { intervalSeconds: number; cron: string | null; options: Record<string, unknown> } | null {
     const minutes = Number(current.minutes);
-    if (!Number.isFinite(minutes) || minutes < 1) {
+    if (current.mode === "interval" && (!Number.isFinite(minutes) || minutes < 1)) {
       setError(t("schedules.interval_invalid"));
+      return null;
+    }
+    if (current.mode === "cron" && current.cron.trim().split(/\s+/).length !== 5) {
+      setError(t("schedules.cron_invalid"));
       return null;
     }
     let options: Record<string, unknown> = {};
@@ -79,7 +97,11 @@ export function SchedulesPanel() {
         return null;
       }
     }
-    return { intervalSeconds: Math.round(minutes * 60), options };
+    return {
+      intervalSeconds: Math.max(60, Math.round((Number.isFinite(minutes) ? minutes : 60) * 60)),
+      cron: current.mode === "cron" ? current.cron.trim() : null,
+      options,
+    };
   }
 
   async function persist(current: Draft, overrides: Partial<Draft> = {}) {
@@ -99,6 +121,7 @@ export function SchedulesPanel() {
         target: merged.target.trim(),
         command: merged.command,
         interval_seconds: parsed.intervalSeconds,
+        cron: parsed.cron,
         enabled: merged.enabled,
         options: parsed.options,
       });
@@ -131,6 +154,8 @@ export function SchedulesPanel() {
         target: job.target,
         command: job.command,
         minutes: String(Math.round(job.interval_seconds / 60)),
+        mode: job.cron ? "cron" : "interval",
+        cron: job.cron ?? "0 2 * * *",
         enabled: job.enabled,
         options: Object.keys(job.options ?? {}).length ? JSON.stringify(job.options) : "",
         editing: false,
@@ -193,13 +218,14 @@ export function SchedulesPanel() {
               </span>
             </div>
             <span className="muted-inline">
-              {job.target} · {t("schedules.every_minutes", { minutes: String(Math.round(job.interval_seconds / 60)) })}
+              {job.target} · {job.cron ? t("schedules.cron_label", { cron: job.cron }) : t("schedules.every_minutes", { minutes: String(Math.round(job.interval_seconds / 60)) })}
             </span>
             <span className="muted-inline">
               {t("schedules.next_run")}: {formatTimestamp(job.next_run, t)}
               {" · "}
               {t("schedules.last_run")}: {formatTimestamp(job.last_run, t)}
             </span>
+            {job.last_error && <span className="error-inline">{t("schedules.last_error", { detail: job.last_error })}</span>}
             {Boolean(Object.keys(job.options ?? {}).length) && (
               <code className="schedule-options">{JSON.stringify(job.options)}</code>
             )}
@@ -264,15 +290,34 @@ export function SchedulesPanel() {
             />
           </label>
           <label className="field">
-            <span>{t("schedules.interval")}</span>
-            <input
-              type="number"
-              min="1"
-              value={draft.minutes}
-              onChange={(event) => setDraft({ ...draft, minutes: event.target.value })}
-            />
-            <small>{t("schedules.interval_hint")}</small>
+            <span>{t("schedules.mode")}</span>
+            <select value={draft.mode} onChange={(event) => setDraft({ ...draft, mode: event.target.value as Draft["mode"] })}>
+              <option value="interval">{t("schedules.mode_interval")}</option>
+              <option value="cron">{t("schedules.mode_cron")}</option>
+            </select>
           </label>
+          {draft.mode === "interval" ? (
+            <label className="field">
+              <span>{t("schedules.interval")}</span>
+              <input
+                type="number"
+                min="1"
+                value={draft.minutes}
+                onChange={(event) => setDraft({ ...draft, minutes: event.target.value })}
+              />
+              <small>{t("schedules.interval_hint")}</small>
+            </label>
+          ) : (
+            <label className="field">
+              <span>{t("schedules.cron")}</span>
+              <input
+                value={draft.cron}
+                onChange={(event) => setDraft({ ...draft, cron: event.target.value })}
+                placeholder="0 2 * * *"
+              />
+              <small>{t("schedules.cron_hint")}</small>
+            </label>
+          )}
           <label className="check-row">
             <input
               checked={draft.enabled}

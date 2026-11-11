@@ -8,25 +8,9 @@
     <meta name="theme-color" content="#f4f8fe" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <title>VulnClaw Web UI</title>
-    <script>
-      // 首帧前定主题，避免深色用户看到一闪而过的浅色底。
-      (function () {
-        try {
-          var raw = window.localStorage.getItem("vulnclaw.ui.preferences");
-          var pref = raw ? JSON.parse(raw).theme : "auto";
-          if (pref !== "light" && pref !== "dark") {
-            pref = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-          }
-          document.documentElement.dataset.theme = pref;
-          var meta = document.querySelector('meta[name="theme-color"]');
-          if (meta) meta.setAttribute("content", pref === "dark" ? "#0b1220" : "#f4f8fe");
-        } catch (error) {
-          /* 存储损坏时按浅色渲染，React 侧会写回默认值 */
-        }
-      })();
-    </script>
-    <script type="module" crossorigin src="/assets/index-D_Re7JxF.js"></script>
-    <link rel="stylesheet" crossorigin href="/assets/index-B9-VThVJ.css">
+    <script src="/theme-init.js"></script>
+    <script type="module" crossorigin src="/assets/index-B8VrWZBu.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-DsjZFWUm.css">
   </head>
   <body>
     <div id="root"></div>

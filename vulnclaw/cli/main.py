@@ -2831,9 +2831,12 @@ def doctor(
 
     # Offline readiness: KB corpus present so retrieval works without network.
     try:
+        from vulnclaw.kb.pack import ensure_default_bundle
         from vulnclaw.kb.store import KnowledgeStore
 
-        kb_stats = KnowledgeStore().get_stats()
+        kb_store = KnowledgeStore()
+        ensure_default_bundle(kb_store)
+        kb_stats = kb_store.get_stats()
         kb_total = sum(kb_stats.values())
         kb_line = (
             f"[green]ready[/] ({kb_total} entries)" if kb_total
@@ -2983,35 +2986,22 @@ def gc(
     dry_run: bool = typer.Option(False, "--dry-run", help="Print what would be deleted"),
 ) -> None:
     """Prune old sessions, runs and target-state directories."""
-    import shutil
+    from vulnclaw.gc import prune
 
-    from vulnclaw.config.settings import RUNS_DIR, SESSIONS_DIR, TARGETS_DIR
-
-    roots = (("sessions", SESSIONS_DIR), ("runs", RUNS_DIR), ("targets", TARGETS_DIR))
-    cutoff = time.time() - max(1, older_than) * 86400
-    removed = 0
-    freed = 0
-    for label, root in roots:
-        if not root.exists():
-            continue
-        entries = [path for path in root.iterdir() if path.is_dir() and not path.is_symlink()]
-        entries.sort(key=lambda path: path.stat().st_mtime, reverse=True)
-        for index, path in enumerate(entries):
-            if index < keep_last or path.stat().st_mtime >= cutoff:
-                continue
-            size = sum(item.stat().st_size for item in path.rglob("*") if item.is_file())
-            if dry_run:
-                console.print(f"[dim]would remove[/] {label}/{path.name} ({size} bytes)")
-            else:
-                shutil.rmtree(path, ignore_errors=True)
-                console.print(f"[yellow]removed[/] {label}/{path.name} ({size} bytes)")
-            removed += 1
-            freed += size
-    if not removed:
+    result = prune(older_than_days=older_than, keep_last=keep_last, dry_run=dry_run)
+    for entry in result.entries:
+        label = str(entry["root"])
+        name = str(entry["name"])
+        size = int(entry["bytes"])
+        if dry_run:
+            console.print(f"[dim]would remove[/] {label}/{name} ({size} bytes)")
+        else:
+            console.print(f"[yellow]removed[/] {label}/{name} ({size} bytes)")
+    if not result.removed:
         console.print("[green]Nothing to prune.[/]")
     else:
         verb = "would remove" if dry_run else "removed"
-        console.print(f"[green]{verb} {removed} entries, {freed} bytes[/]")
+        console.print(f"[green]{verb} {result.removed} entries, {result.freed_bytes} bytes[/]")
 
 kb_app = typer.Typer(help="Security knowledge base commands")
 app.add_typer(kb_app, name="kb")

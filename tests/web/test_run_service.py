@@ -94,3 +94,41 @@ def test_list_runs_rejects_non_positive_limit(monkeypatch, tmp_path):
     monkeypatch.setattr(service, "RUNS_DIR", tmp_path)
     with pytest.raises(ValueError):
         service.list_runs(limit=0)
+
+
+def test_run_detail_aggregates_phase_durations(monkeypatch, tmp_path):
+    import vulnclaw.web.services.run_service as service
+
+    run_dir = tmp_path / "run-phases"
+    (run_dir / "events").mkdir(parents=True)
+    (run_dir / "findings").mkdir()
+    (run_dir / "reports").mkdir()
+    (run_dir / "run.json").write_text(
+        json.dumps(
+            {
+                "run_name": "run-phases",
+                "command": "recon",
+                "status": "completed",
+                "targets": [{"canonical": "https://example.com/"}],
+            }
+        ),
+        encoding="utf-8",
+    )
+    events = [
+        {"timestamp": "2026-11-11T00:00:00", "kind": "recon", "payload": {}},
+        {"timestamp": "2026-11-11T00:00:10", "kind": "recon", "payload": {}},
+        {"timestamp": "2026-11-11T00:00:20", "kind": "scan", "payload": {}},
+        {"timestamp": "2026-11-11T00:00:25", "kind": "scan", "payload": {}},
+    ]
+    (run_dir / "events" / "events.jsonl").write_text(
+        "\n".join(json.dumps(event) for event in events) + "\n", encoding="utf-8"
+    )
+    monkeypatch.setattr(service, "RUNS_DIR", tmp_path)
+
+    detail = service.get_run("run-phases")
+
+    assert detail is not None
+    assert [(phase.name, phase.duration_seconds) for phase in detail.phases] == [
+        ("recon", 10.0),
+        ("scan", 5.0),
+    ]

@@ -90,3 +90,17 @@ def test_task_event_schema_accepts_legacy_payload_without_seq():
 
     event = TaskEvent(event="task_started", task_id="t")
     assert event.seq == 0
+
+
+def test_events_after_returns_a_bounded_rest_page():
+    from vulnclaw.task_service import TaskCreateRequest
+    from vulnclaw.web.task_manager import WebTaskManager
+
+    manager = WebTaskManager(max_concurrent=1)
+    record = manager.create_task(TaskCreateRequest(command="codescan", target="example.com"))
+    for index in range(5):
+        manager.publish(record.task_id, "round_output", {"index": index})
+
+    page = manager.events_after(record.task_id, after_seq=1, limit=2)
+
+    assert [event.seq for event in page] == [2, 3]

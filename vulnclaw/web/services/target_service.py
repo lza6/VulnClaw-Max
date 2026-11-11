@@ -26,11 +26,27 @@ from vulnclaw.web.schemas import (
 logger = logging.getLogger(__name__)
 
 
-def list_targets(limit: int = 20) -> list[TargetView]:
-    """List recent targets, preferring the O(1) global index."""
+def list_targets(limit: int = 20, project: str | None = None) -> list[TargetView]:
+    """List recent targets, preferring the O(1) global index.
+
+    ``project`` filters by the single-owner project index; an empty string means
+    targets that are not assigned to any project.
+    """
     if limit < 1:
         raise ValueError("limit must be positive")
     ensure_dirs()
+    allowed: set[str] | None = None
+    owned: set[str] | None = None
+    if project is not None:
+        from vulnclaw.web.services.project_service import (
+            owned_targets,
+            targets_for_project,
+        )
+
+        if project:
+            allowed = targets_for_project(project)
+        else:
+            owned = owned_targets()
     index_path = TARGETS_DIR / "index.json"
     if index_path.exists():
         try:
@@ -42,11 +58,18 @@ def list_targets(limit: int = 20) -> list[TargetView]:
                     reverse=True,
                 )
                 views: list[TargetView] = []
-                for item in ordered[:limit]:
+                for item in ordered:
                     try:
-                        views.append(TargetView(**item))
+                        view = TargetView(**item)
                     except (TypeError, ValueError, KeyError):
                         continue
+                    if owned is not None and view.target in owned:
+                        continue
+                    if allowed is not None and view.target not in allowed:
+                        continue
+                    views.append(view)
+                    if len(views) >= limit:
+                        break
                 return views
         except (OSError, json.JSONDecodeError):
             logger.warning("Target index is unreadable; falling back to a directory scan")
@@ -59,12 +82,20 @@ def list_targets(limit: int = 20) -> list[TargetView]:
     entries.sort(key=lambda item: item[0], reverse=True)
 
     views: list[TargetView] = []
-    for _mtime_value, state_path in entries[:limit]:
+    for _mtime_value, state_path in entries:
         try:
             raw = json.loads(state_path.read_text(encoding="utf-8"))
-            views.append(_build_target_view(raw))
+            view = _build_target_view(raw)
         except (OSError, json.JSONDecodeError, ValueError, TypeError, KeyError) as exc:
             logger.warning("Skipping unreadable target state %s: %s", state_path, exc)
+            continue
+        if owned is not None and view.target in owned:
+            continue
+        if allowed is not None and view.target not in allowed:
+            continue
+        views.append(view)
+        if len(views) >= limit:
+            break
     return views
 
 

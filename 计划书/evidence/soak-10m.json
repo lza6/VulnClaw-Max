@@ -1,0 +1,739 @@
+{
+  "duration_seconds": 605.4,
+  "tasks_submitted": 120,
+  "samples": [
+    {
+      "at": "2026-11-11T15:20:16",
+      "rss_mb": 100.8,
+      "threads": 3
+    },
+    {
+      "at": "2026-11-11T15:20:21",
+      "rss_mb": 101.6,
+      "threads": 3
+    },
+    {
+      "at": "2026-11-11T15:20:26",
+      "rss_mb": 101.9,
+      "threads": 3
+    },
+    {
+      "at": "2026-11-11T15:20:31",
+      "rss_mb": 107.6,
+      "threads": 3
+    },
+    {
+      "at": "2026-11-11T15:20:36",
+      "rss_mb": 107.6,
+      "threads": 3
+    },
+    {
+      "at": "2026-11-11T15:20:41",
+      "rss_mb": 107.9,
+      "threads": 3
+    },
+    {
+      "at": "2026-11-11T15:20:46",
+      "rss_mb": 108.0,
+      "threads": 3
+    },
+    {
+      "at": "2026-11-11T15:20:51",
+      "rss_mb": 108.0,
+      "threads": 3
+    },
+    {
+      "at": "2026-11-11T15:20:56",
+      "rss_mb": 108.0,
+      "threads": 3
+    },
+    {
+      "at": "2026-11-11T15:21:01",
+      "rss_mb": 108.1,
+      "threads": 3
+    },
+    {
+      "at": "2026-11-11T15:21:06",
+      "rss_mb": 108.2,
+      "threads": 3
+    },
+    {
+      "at": "2026-11-11T15:21:11",
+      "rss_mb": 108.4,
+      "threads": 3
+    },
+    {
+      "at": "2026-11-11T15:21:16",
+      "rss_mb": 108.5,
+      "threads": 3
+    },
+    {
+      "at": "2026-11-11T15:21:21",
+      "rss_mb": 108.7,
+      "threads": 3
+    },
+    {
+      "at": "2026-11-11T15:21:27",
+      "rss_mb": 108.8,
+      "threads": 3
+    },
+    {
+      "at": "2026-11-11T15:21:32",
+      "rss_mb": 109.0,
+      "threads": 3
+    },
+    {
+      "at": "2026-11-11T15:21:37",
+      "rss_mb": 109.2,
+      "threads": 3
+    },
+    {
+      "at": "2026-11-11T15:21:42",
+      "rss_mb": 109.3,
+      "threads": 3
+    },
+    {
+      "at": "2026-11-11T15:21:47",
+      "rss_mb": 109.5,
+      "threads": 3
+    },
+    {
+      "at": "2026-11-11T15:21:52",
+      "rss_mb": 109.7,
+      "threads": 3
+    },
+    {
+      "at": "2026-11-11T15:21:57",
+      "rss_mb": 109.8,
+      "threads": 3
+    },
+    {
+      "at": "2026-11-11T15:22:02",
+      "rss_mb": 110.0,
+      "threads": 3
+    },
+    {
+      "at": "2026-11-11T15:22:07",
+      "rss_mb": 110.2,
+      "threads": 3
+    },
+    {
+      "at": "2026-11-11T15:22:12",
+      "rss_mb": 110.3,
+      "threads": 3
+    },
+    {
+      "at": "2026-11-11T15:22:17",
+      "rss_mb": 110.5,
+      "threads": 3
+    },
+    {
+      "at": "2026-11-11T15:22:22",
+      "rss_mb": 110.7,
+      "threads": 3
+    },
+    {
+      "at": "2026-11-11T15:22:27",
+      "rss_mb": 110.8,
+      "threads": 3
+    },
+    {
+      "at": "2026-11-11T15:22:32",
+      "rss_mb": 111.1,
+      "threads": 3
+    },
+    {
+      "at": "2026-11-11T15:22:37",
+      "rss_mb": 111.3,
+      "threads": 3
+    },
+    {
+      "at": "2026-11-11T15:22:42",
+      "rss_mb": 111.4,
+      "threads": 3
+    },
+    {
+      "at": "2026-11-11T15:22:47",
+      "rss_mb": 111.7,
+      "threads": 3
+    },
+    {
+      "at": "2026-11-11T15:22:52",
+      "rss_mb": 111.9,
+      "threads": 3
+    },
+    {
+      "at": "2026-11-11T15:22:57",
+      "rss_mb": 112.1,
+      "threads": 3
+    },
+    {
+      "at": "2026-11-11T15:23:02",
+      "rss_mb": 112.2,
+      "threads": 3
+    },
+    {
+      "at": "2026-11-11T15:23:07",
+      "rss_mb": 112.4,
+      "threads": 3
+    },
+    {
+      "at": "2026-11-11T15:23:12",
+      "rss_mb": 112.6,
+      "threads": 3
+    },
+    {
+      "at": "2026-11-11T15:23:17",
+      "rss_mb": 112.7,
+      "threads": 3
+    },
+    {
+      "at": "2026-11-11T15:23:22",
+      "rss_mb": 104.8,
+      "threads": 3
+    },
+    {
+      "at": "2026-11-11T15:23:27",
+      "rss_mb": 105.5,
+      "threads": 3
+    },
+    {
+      "at": "2026-11-11T15:23:32",
+      "rss_mb": 105.6,
+      "threads": 3
+    },
+    {
+      "at": "2026-11-11T15:23:37",
+      "rss_mb": 105.8,
+      "threads": 3
+    },
+    {
+      "at": "2026-11-11T15:23:42",
+      "rss_mb": 105.8,
+      "threads": 3
+    },
+    {
+      "at": "2026-11-11T15:23:47",
+      "rss_mb": 106.0,
+      "threads": 3
+    },
+    {
+      "at": "2026-11-11T15:23:52",
+      "rss_mb": 106.1,
+      "threads": 3
+    },
+    {
+      "at": "2026-11-11T15:23:57",
+      "rss_mb": 106.3,
+      "threads": 3
+    },
+    {
+      "at": "2026-11-11T15:24:02",
+      "rss_mb": 106.4,
+      "threads": 3
+    },
+    {
+      "at": "2026-11-11T15:24:07",
+      "rss_mb": 106.6,
+      "threads": 3
+    },
+    {
+      "at": "2026-11-11T15:24:12",
+      "rss_mb": 106.7,
+      "threads": 4
+    },
+    {
+      "at": "2026-11-11T15:24:17",
+      "rss_mb": 106.9,
+      "threads": 4
+    },
+    {
+      "at": "2026-11-11T15:24:22",
+      "rss_mb": 107.1,
+      "threads": 4
+    },
+    {
+      "at": "2026-11-11T15:24:27",
+      "rss_mb": 107.1,
+      "threads": 4
+    },
+    {
+      "at": "2026-11-11T15:24:32",
+      "rss_mb": 107.3,
+      "threads": 4
+    },
+    {
+      "at": "2026-11-11T15:24:37",
+      "rss_mb": 107.3,
+      "threads": 4
+    },
+    {
+      "at": "2026-11-11T15:24:42",
+      "rss_mb": 107.5,
+      "threads": 4
+    },
+    {
+      "at": "2026-11-11T15:24:47",
+      "rss_mb": 107.6,
+      "threads": 4
+    },
+    {
+      "at": "2026-11-11T15:24:52",
+      "rss_mb": 107.9,
+      "threads": 4
+    },
+    {
+      "at": "2026-11-11T15:24:57",
+      "rss_mb": 108.0,
+      "threads": 4
+    },
+    {
+      "at": "2026-11-11T15:25:02",
+      "rss_mb": 108.1,
+      "threads": 4
+    },
+    {
+      "at": "2026-11-11T15:25:07",
+      "rss_mb": 108.1,
+      "threads": 4
+    },
+    {
+      "at": "2026-11-11T15:25:12",
+      "rss_mb": 108.1,
+      "threads": 4
+    },
+    {
+      "at": "2026-11-11T15:25:17",
+      "rss_mb": 108.2,
+      "threads": 4
+    },
+    {
+      "at": "2026-11-11T15:25:22",
+      "rss_mb": 108.2,
+      "threads": 4
+    },
+    {
+      "at": "2026-11-11T15:25:27",
+      "rss_mb": 108.2,
+      "threads": 4
+    },
+    {
+      "at": "2026-11-11T15:25:32",
+      "rss_mb": 108.6,
+      "threads": 4
+    },
+    {
+      "at": "2026-11-11T15:25:37",
+      "rss_mb": 108.6,
+      "threads": 4
+    },
+    {
+      "at": "2026-11-11T15:25:43",
+      "rss_mb": 108.7,
+      "threads": 4
+    },
+    {
+      "at": "2026-11-11T15:25:48",
+      "rss_mb": 108.8,
+      "threads": 4
+    },
+    {
+      "at": "2026-11-11T15:25:53",
+      "rss_mb": 109.1,
+      "threads": 4
+    },
+    {
+      "at": "2026-11-11T15:25:58",
+      "rss_mb": 109.1,
+      "threads": 4
+    },
+    {
+      "at": "2026-11-11T15:26:03",
+      "rss_mb": 109.1,
+      "threads": 4
+    },
+    {
+      "at": "2026-11-11T15:26:08",
+      "rss_mb": 109.1,
+      "threads": 4
+    },
+    {
+      "at": "2026-11-11T15:26:13",
+      "rss_mb": 109.2,
+      "threads": 4
+    },
+    {
+      "at": "2026-11-11T15:26:18",
+      "rss_mb": 109.3,
+      "threads": 4
+    },
+    {
+      "at": "2026-11-11T15:26:23",
+      "rss_mb": 109.3,
+      "threads": 4
+    },
+    {
+      "at": "2026-11-11T15:26:28",
+      "rss_mb": 109.3,
+      "threads": 4
+    },
+    {
+      "at": "2026-11-11T15:26:33",
+      "rss_mb": 109.4,
+      "threads": 4
+    },
+    {
+      "at": "2026-11-11T15:26:38",
+      "rss_mb": 109.6,
+      "threads": 4
+    },
+    {
+      "at": "2026-11-11T15:26:43",
+      "rss_mb": 109.6,
+      "threads": 4
+    },
+    {
+      "at": "2026-11-11T15:26:48",
+      "rss_mb": 109.7,
+      "threads": 4
+    },
+    {
+      "at": "2026-11-11T15:26:53",
+      "rss_mb": 109.9,
+      "threads": 4
+    },
+    {
+      "at": "2026-11-11T15:26:58",
+      "rss_mb": 110.2,
+      "threads": 4
+    },
+    {
+      "at": "2026-11-11T15:27:03",
+      "rss_mb": 110.3,
+      "threads": 4
+    },
+    {
+      "at": "2026-11-11T15:27:08",
+      "rss_mb": 110.4,
+      "threads": 4
+    },
+    {
+      "at": "2026-11-11T15:27:13",
+      "rss_mb": 110.6,
+      "threads": 4
+    },
+    {
+      "at": "2026-11-11T15:27:18",
+      "rss_mb": 110.8,
+      "threads": 4
+    },
+    {
+      "at": "2026-11-11T15:27:23",
+      "rss_mb": 111.0,
+      "threads": 4
+    },
+    {
+      "at": "2026-11-11T15:27:28",
+      "rss_mb": 105.5,
+      "threads": 4
+    },
+    {
+      "at": "2026-11-11T15:27:33",
+      "rss_mb": 106.3,
+      "threads": 4
+    },
+    {
+      "at": "2026-11-11T15:27:38",
+      "rss_mb": 106.4,
+      "threads": 4
+    },
+    {
+      "at": "2026-11-11T15:27:43",
+      "rss_mb": 106.6,
+      "threads": 4
+    },
+    {
+      "at": "2026-11-11T15:27:48",
+      "rss_mb": 106.8,
+      "threads": 4
+    },
+    {
+      "at": "2026-11-11T15:27:53",
+      "rss_mb": 106.9,
+      "threads": 4
+    },
+    {
+      "at": "2026-11-11T15:27:58",
+      "rss_mb": 107.0,
+      "threads": 4
+    },
+    {
+      "at": "2026-11-11T15:28:03",
+      "rss_mb": 107.1,
+      "threads": 4
+    },
+    {
+      "at": "2026-11-11T15:28:08",
+      "rss_mb": 107.2,
+      "threads": 4
+    },
+    {
+      "at": "2026-11-11T15:28:13",
+      "rss_mb": 107.3,
+      "threads": 4
+    },
+    {
+      "at": "2026-11-11T15:28:18",
+      "rss_mb": 107.4,
+      "threads": 4
+    },
+    {
+      "at": "2026-11-11T15:28:23",
+      "rss_mb": 107.5,
+      "threads": 4
+    },
+    {
+      "at": "2026-11-11T15:28:28",
+      "rss_mb": 107.5,
+      "threads": 4
+    },
+    {
+      "at": "2026-11-11T15:28:33",
+      "rss_mb": 107.7,
+      "threads": 4
+    },
+    {
+      "at": "2026-11-11T15:28:38",
+      "rss_mb": 107.9,
+      "threads": 4
+    },
+    {
+      "at": "2026-11-11T15:28:43",
+      "rss_mb": 108.0,
+      "threads": 4
+    },
+    {
+      "at": "2026-11-11T15:28:48",
+      "rss_mb": 108.2,
+      "threads": 4
+    },
+    {
+      "at": "2026-11-11T15:28:53",
+      "rss_mb": 108.2,
+      "threads": 4
+    },
+    {
+      "at": "2026-11-11T15:28:58",
+      "rss_mb": 108.5,
+      "threads": 4
+    },
+    {
+      "at": "2026-11-11T15:29:03",
+      "rss_mb": 108.5,
+      "threads": 4
+    },
+    {
+      "at": "2026-11-11T15:29:08",
+      "rss_mb": 108.9,
+      "threads": 4
+    },
+    {
+      "at": "2026-11-11T15:29:13",
+      "rss_mb": 104.8,
+      "threads": 4
+    },
+    {
+      "at": "2026-11-11T15:29:18",
+      "rss_mb": 105.4,
+      "threads": 4
+    },
+    {
+      "at": "2026-11-11T15:29:23",
+      "rss_mb": 105.5,
+      "threads": 4
+    },
+    {
+      "at": "2026-11-11T15:29:29",
+      "rss_mb": 105.7,
+      "threads": 4
+    },
+    {
+      "at": "2026-11-11T15:29:34",
+      "rss_mb": 105.8,
+      "threads": 4
+    },
+    {
+      "at": "2026-11-11T15:29:39",
+      "rss_mb": 105.9,
+      "threads": 4
+    },
+    {
+      "at": "2026-11-11T15:29:44",
+      "rss_mb": 106.0,
+      "threads": 4
+    },
+    {
+      "at": "2026-11-11T15:29:49",
+      "rss_mb": 106.2,
+      "threads": 4
+    },
+    {
+      "at": "2026-11-11T15:29:54",
+      "rss_mb": 106.3,
+      "threads": 4
+    },
+    {
+      "at": "2026-11-11T15:29:59",
+      "rss_mb": 106.5,
+      "threads": 4
+    },
+    {
+      "at": "2026-11-11T15:30:04",
+      "rss_mb": 106.7,
+      "threads": 4
+    },
+    {
+      "at": "2026-11-11T15:30:09",
+      "rss_mb": 106.7,
+      "threads": 4
+    },
+    {
+      "at": "2026-11-11T15:30:14",
+      "rss_mb": 106.8,
+      "threads": 4
+    }
+  ],
+  "rss_start_mb": 100.8,
+  "rss_end_mb": 106.8,
+  "rss_peak_mb": 112.7,
+  "rss_median_mb": 108.1,
+  "rss_growth_pct": 5.95,
+  "final_states": [
+    "completed",
+    "completed",
+    "completed",
+    "completed",
+    "completed",
+    "completed",
+    "completed",
+    "completed",
+    "completed",
+    "completed",
+    "completed",
+    "completed",
+    "completed",
+    "completed",
+    "completed",
+    "completed",
+    "completed",
+    "completed",
+    "completed",
+    "completed",
+    "completed",
+    "completed",
+    "completed",
+    "completed",
+    "completed",
+    "completed",
+    "completed",
+    "completed",
+    "completed",
+    "completed",
+    "completed",
+    "completed",
+    "completed",
+    "completed",
+    "completed",
+    "completed",
+    "completed",
+    "completed",
+    "completed",
+    "completed",
+    "completed",
+    "completed",
+    "completed",
+    "completed",
+    "completed",
+    "completed",
+    "completed",
+    "completed",
+    "completed",
+    "completed",
+    "completed",
+    "completed",
+    "completed",
+    "completed",
+    "completed",
+    "completed",
+    "completed",
+    "completed",
+    "completed",
+    "completed",
+    "completed",
+    "completed",
+    "completed",
+    "completed",
+    "completed",
+    "completed",
+    "completed",
+    "completed",
+    "completed",
+    "completed",
+    "completed",
+    "completed",
+    "completed",
+    "completed",
+    "completed",
+    "completed",
+    "completed",
+    "completed",
+    "completed",
+    "completed",
+    "completed",
+    "completed",
+    "completed",
+    "completed",
+    "completed",
+    "completed",
+    "completed",
+    "completed",
+    "completed",
+    "completed",
+    "completed",
+    "completed",
+    "completed",
+    "completed",
+    "completed",
+    "completed",
+    "completed",
+    "completed",
+    "completed",
+    "completed",
+    "completed",
+    "completed",
+    "completed",
+    "completed",
+    "completed",
+    "completed",
+    "completed",
+    "completed",
+    "completed",
+    "completed",
+    "completed",
+    "completed",
+    "completed",
+    "completed",
+    "completed",
+    "completed",
+    "completed",
+    "completed",
+    "completed",
+    "completed"
+  ],
+  "children_before": [],
+  "children_after": [],
+  "assertions": {
+    "ok": true,
+    "failures": []
+  }
+}

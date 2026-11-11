@@ -1,13 +1,7 @@
 import { useMemo, useRef } from "react";
 import { Canvas, useThree, type ThreeEvent } from "@react-three/fiber";
 import * as THREE from "three";
-
-export interface AttackSurfaceNode {
-  id: string;
-  label: string;
-  /** 已归一化的严重度：Critical / High / Medium / Low / 其它 */
-  severity: string;
-}
+import type { AttackSurfaceNode } from "./types";
 
 export interface AttackSurfaceSceneProps {
   target: string;
@@ -128,6 +122,7 @@ export default function AttackSurfaceScene({ target, nodes }: AttackSurfaceScene
       camera={{ position: [0, 1.5, 5.2], fov: 42 }}
       gl={{ antialias: true, alpha: true }}
       data-target={target}
+      aria-hidden="true"
     >
       <ambientLight intensity={0.85} />
       <directionalLight position={[3, 4, 5]} intensity={0.9} />

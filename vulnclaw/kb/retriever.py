@@ -174,8 +174,18 @@ class KnowledgeRetriever:
     its choice via :meth:`get_status`.
     """
 
-    def __init__(self, store: Optional[KnowledgeStore] = None, *, rerank: bool = False) -> None:
+    def __init__(
+        self,
+        store: Optional[KnowledgeStore] = None,
+        *,
+        rerank: bool = False,
+        auto_seed_default: bool = True,
+    ) -> None:
         self.store = store or KnowledgeStore()
+        if auto_seed_default:
+            from vulnclaw.kb.pack import ensure_default_bundle
+
+            ensure_default_bundle(self.store)
         self._rerank_enabled = rerank
         self._status: RetrieverStatus = RetrieverStatus.DISABLED
         self._status_detail: str = ""

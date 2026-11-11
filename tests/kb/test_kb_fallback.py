@@ -61,7 +61,7 @@ class TestAutoDegradation:
         monkeypatch.setattr(retriever_mod, "CHROMADB_AVAILABLE", False)
         store = KnowledgeStore(store_dir=tmp_path)  # empty
 
-        retriever = KnowledgeRetriever(store=store)
+        retriever = KnowledgeRetriever(store=store, auto_seed_default=False)
         assert retriever.get_status() == RetrieverStatus.DISABLED
         # Generic retrieve degrades to empty list rather than raising.
         assert retriever.retrieve("anything") == []

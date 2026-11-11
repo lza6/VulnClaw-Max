@@ -9,6 +9,7 @@ from urllib.parse import urlsplit
 
 from pydantic import BaseModel, Field, field_validator
 
+from vulnclaw.cron import validate_cron
 from vulnclaw.task_service import TaskCommand, TaskCreateRequest, TaskOptions  # noqa: F401
 
 TaskStatus = Literal[
@@ -96,6 +97,7 @@ class TaskSummary(BaseModel):
     tokens_output: int = 0
     tokens_total: int = 0
     llm_calls: int = 0
+    cost_estimate: float = 0.0
 
 
 class TaskRecord(BaseModel):
@@ -205,6 +207,8 @@ class ReportGenerateRequest(BaseModel):
     output_path: Optional[str] = Field(default=None, max_length=1024)
     report_format: Literal["markdown", "html", "pdf"] = "markdown"
     template: Literal["pentest", "executive", "ctf"] = "pentest"
+    project: Optional[str] = Field(default=None, max_length=64)
+    run_name: Optional[str] = Field(default=None, max_length=120)
 
 
 class ConfigView(BaseModel):
@@ -345,11 +349,20 @@ class RunEventView(BaseModel):
     payload: dict[str, Any] = Field(default_factory=dict)
 
 
+class RunPhaseView(BaseModel):
+    name: str
+    started_at: str = ""
+    ended_at: str = ""
+    duration_seconds: float = 0.0
+    event_count: int = 0
+
+
 class RunDetailView(RunSummaryView):
     run_dir: str = ""
     artifacts: dict[str, str] = Field(default_factory=dict)
     resume: dict[str, Any] = Field(default_factory=dict)
     events: list[RunEventView] = Field(default_factory=list)
+    phases: list[RunPhaseView] = Field(default_factory=list)
     findings: dict[str, Any] | list[Any] | None = None
     reports: list[str] = Field(default_factory=list)
 
@@ -392,6 +405,13 @@ class FindingTriageRequest(BaseModel):
 class MCPToggleRequest(BaseModel):
     name: str = Field(min_length=1, max_length=120)
     enabled: bool
+    allowed_tools: Optional[list[str]] = Field(default=None, max_length=200)
+
+
+class GCRequest(BaseModel):
+    older_than: int = Field(default=30, ge=1, le=3650)
+    keep_last: int = Field(default=50, ge=0, le=10000)
+    dry_run: bool = True
 
 
 class ProjectView(BaseModel):
@@ -472,10 +492,13 @@ class ScheduleView(BaseModel):
     target: str
     command: str = "recon"
     interval_seconds: float = 3600
+    cron: Optional[str] = None
     enabled: bool = True
     options: dict[str, Any] = Field(default_factory=dict)
     last_run: float | None = None
     next_run: float | None = None
+    last_error: str = ""
+    last_error_at: Optional[str] = None
 
 
 class ScheduleUpsertRequest(BaseModel):
@@ -483,5 +506,17 @@ class ScheduleUpsertRequest(BaseModel):
     target: str = Field(min_length=1, max_length=2048)
     command: Literal["run", "recon", "scan", "exploit", "persistent", "codescan"] = "recon"
     interval_seconds: float = Field(default=3600, ge=60, le=30 * 86400)
+    cron: Optional[str] = Field(default=None, max_length=120)
     enabled: bool = True
     options: dict[str, Any] = Field(default_factory=dict)
+
+    @field_validator("cron")
+    @classmethod
+    def validate_cron_expression(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        normalized = value.strip()
+        if not normalized:
+            return None
+        validate_cron(normalized)
+        return normalized

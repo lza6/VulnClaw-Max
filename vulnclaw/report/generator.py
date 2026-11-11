@@ -36,6 +36,23 @@ def _rl(zh: str, en: str) -> str:
     """Return the English or Chinese variant based on the active UI language."""
     return en if current_lang() == "en" else zh
 
+
+def _report_cost_context(tokens_input: int, tokens_output: int) -> tuple[float, str]:
+    """Estimate report cost from the configured per-million token prices."""
+    try:
+        from vulnclaw.config.settings import load_config
+
+        llm = load_config().llm
+        input_price = float(getattr(llm, "input_cost_per_million", 0.0) or 0.0)
+        output_price = float(getattr(llm, "output_cost_per_million", 0.0) or 0.0)
+        currency = str(getattr(llm, "cost_currency", "USD") or "USD")
+    except Exception:
+        return 0.0, "USD"
+    cost = (tokens_input / 1_000_000.0) * input_price + (
+        tokens_output / 1_000_000.0
+    ) * output_price
+    return round(cost, 6), currency
+
 logger = logging.getLogger(__name__)
 
 # ── Report Template ─────────────────────────────────────────────────
@@ -52,6 +69,10 @@ REPORT_TEMPLATE = """\
 | **报告生成** | {{ generated_at }} |
 | **测试工具** | VulnClaw v{{ version }} |
 | **任务约束** | {{ task_constraints_summary }} |
+{% if tokens_total %}
+| **Token 用量** | 输入 {{ tokens_input }} / 输出 {{ tokens_output }} / 合计 {{ tokens_total }} |
+| **估算成本** | {% if cost_estimate %}{{ cost_estimate }} {{ cost_currency }}{% else %}未配置单价{% endif %} |
+{% endif %}
 
 ## 2. 执行摘要
 
@@ -125,6 +146,9 @@ REPORT_TEMPLATE = """\
 
 - **漏洞类型**: {{ finding.vuln_type or "未分类" }}
 - **生命周期**: {{ finding.lifecycle_status or "pending_verification" }}
+{% if finding.triage_status and finding.triage_status != "new" %}
+- **处置状态**: {{ finding.triage_status }}{% if finding.assignee %}（负责人: {{ finding.assignee }}）{% endif %}
+{% endif %}
 - **证据等级**: {{ finding.evidence_level or "L1" }}
 - **CVE**: {{ finding.cve or "N/A" }}
 - **影响范围**: {{ finding.description or "无" }}
@@ -226,6 +250,10 @@ REPORT_TEMPLATE_EN = """\
 | **Report Generated** | {{ generated_at }} |
 | **Testing Tool** | VulnClaw v{{ version }} |
 | **Task Constraints** | {{ task_constraints_summary }} |
+{% if tokens_total %}
+| **Token Usage** | input {{ tokens_input }} / output {{ tokens_output }} / total {{ tokens_total }} |
+| **Estimated Cost** | {% if cost_estimate %}{{ cost_estimate }} {{ cost_currency }}{% else %}price not configured{% endif %} |
+{% endif %}
 
 ## 2. Executive Summary
 
@@ -299,6 +327,9 @@ Recommendations:
 
 - **Vulnerability Type**: {{ finding.vuln_type or "Uncategorized" }}
 - **Lifecycle**: {{ finding.lifecycle_status or "pending_verification" }}
+{% if finding.triage_status and finding.triage_status != "new" %}
+- **Triage Status**: {{ finding.triage_status }}{% if finding.assignee %} (assignee: {{ finding.assignee }}){% endif %}
+{% endif %}
 - **Evidence Level**: {{ finding.evidence_level or "L1" }}
 - **CVE**: {{ finding.cve or "N/A" }}
 - **Impact**: {{ finding.description or "None" }}
@@ -486,6 +517,19 @@ def generate_report(
             logger.info("LLM attack summary generated for report section 4")
     filtered_summary = ReportContentFilter.filter(llm_attack_summary) if llm_attack_summary else ""
 
+    context_meta = target_state_context or {}
+    finding_meta_value = context_meta.get("finding_meta")
+    finding_meta = finding_meta_value if isinstance(finding_meta_value, dict) else {}
+    runtime_meta_value = context_meta.get("runtime_meta")
+    runtime_meta = runtime_meta_value if isinstance(runtime_meta_value, dict) else {}
+    tokens_input = int(runtime_meta.get("tokens_input") or 0)
+    tokens_output = int(runtime_meta.get("tokens_output") or 0)
+    tokens_total = int(runtime_meta.get("tokens_total") or 0)
+    cost_estimate, cost_currency = _report_cost_context(tokens_input, tokens_output)
+
+    def _with_meta(finding: VulnerabilityFinding) -> dict[str, Any]:
+        return _build_report_finding(finding, finding_meta.get(_report_finding_key(finding)))
+
     context = {
         "target": session.target or "unknown",
         "started_at": session.started_at,
@@ -501,8 +545,8 @@ def generate_report(
             for item in getattr(session, "constraint_violation_events", [])
         ],
         "key_recommendations": recommendations,
-        "verified_findings": [_build_report_finding(finding) for finding in verified_findings],
-        "findings": [_build_report_finding(finding) for finding in verified_findings],
+        "verified_findings": [_with_meta(finding) for finding in verified_findings],
+        "findings": [_with_meta(finding) for finding in verified_findings],
         "executed_steps": session.executed_steps,
         "executed_step_count": len(session.executed_steps),
         "total_findings_submitted": len(all_findings),
@@ -516,6 +560,12 @@ def generate_report(
         "step_summary": session.get_step_summary(),
         "phase_heading": localized_report_phase_heading,
         "llm_attack_summary": filtered_summary,
+        "tokens_input": tokens_input,
+        "tokens_output": tokens_output,
+        "tokens_total": tokens_total,
+        "llm_calls": int(runtime_meta.get("llm_calls") or 0),
+        "cost_estimate": cost_estimate,
+        "cost_currency": cost_currency,
     }
 
     if template_kind == "pentest":
@@ -640,6 +690,9 @@ CYCLE_REPORT_TEMPLATE = """\
 {% endif %}
 - **漏洞类型**: {{ finding.vuln_type or "未分类" }}
 - **生命周期**: {{ finding.lifecycle_status or "pending_verification" }}
+{% if finding.triage_status and finding.triage_status != "new" %}
+- **处置状态**: {{ finding.triage_status }}{% if finding.assignee %}（负责人: {{ finding.assignee }}）{% endif %}
+{% endif %}
 - **证据等级**: {{ finding.evidence_level or "L1" }}
 - **CVE**: {{ finding.cve or "N/A" }}
 - **影响范围**: {{ finding.description or "无" }}
@@ -766,6 +819,9 @@ CYCLE_REPORT_TEMPLATE_EN = """\
 {% endif %}
 - **Vulnerability Type**: {{ finding.vuln_type or "Uncategorized" }}
 - **Lifecycle**: {{ finding.lifecycle_status or "pending_verification" }}
+{% if finding.triage_status and finding.triage_status != "new" %}
+- **Triage Status**: {{ finding.triage_status }}{% if finding.assignee %} (assignee: {{ finding.assignee }}){% endif %}
+{% endif %}
 - **Evidence Level**: {{ finding.evidence_level or "L1" }}
 - **CVE**: {{ finding.cve or "N/A" }}
 - **Impact**: {{ finding.description or "None" }}
@@ -1359,7 +1415,10 @@ def _format_task_constraints_summary(session: SessionState) -> str:
     return sep.join(parts) if parts else _rl("已启用约束", "Constraints enabled")
 
 
-def _build_report_finding(finding: VulnerabilityFinding) -> dict[str, Any]:
+def _build_report_finding(
+    finding: VulnerabilityFinding, meta: dict[str, Any] | None = None
+) -> dict[str, Any]:
+    triage = meta or {}
     return {
         "title": finding.title,
         "severity": finding.severity,
@@ -1378,7 +1437,18 @@ def _build_report_finding(finding: VulnerabilityFinding) -> dict[str, Any]:
         "subagent_provenance": finding.subagent_provenance,
         "location_summary": _extract_location_summary(finding),
         "repro_summary": _build_repro_summary(finding),
+        "triage_status": str(triage.get("triage_status") or "new"),
+        "assignee": str(triage.get("assignee") or ""),
+        "triage_note": str(triage.get("note") or ""),
     }
+
+
+def _report_finding_key(finding: VulnerabilityFinding) -> str:
+    """Match the finding key used by target-state triage metadata."""
+    finding_id = str(getattr(finding, "finding_id", "") or "")
+    if finding_id:
+        return finding_id
+    return f"{finding.title}::{finding.vuln_type}"
 
 
 def _render_verified_finding_details(findings: list[VulnerabilityFinding], heading: str) -> str:

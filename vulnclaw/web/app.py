@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import logging
 import time
 from contextlib import asynccontextmanager, contextmanager
 from pathlib import Path
@@ -15,6 +16,7 @@ from vulnclaw.web.auth import AuthMiddleware, attach_session_cookie, verify_toke
 from vulnclaw.web.schemas import (
     ConfigUpdateRequest,
     FindingTriageRequest,
+    GCRequest,
     IntegrationDeliveryView,
     IntegrationDispatchRequest,
     IntegrationUpsertRequest,
@@ -41,8 +43,10 @@ from vulnclaw.web.services.integration_service import (
     save_integration,
     test_integration,
 )
-from vulnclaw.web.services.mcp_control_service import toggle_mcp_server
-from vulnclaw.web.services.mcp_service import get_mcp_diagnostics
+from vulnclaw.web.services.mcp_control_service import (
+    get_live_mcp_diagnostics,
+    toggle_mcp_server,
+)
 from vulnclaw.web.services.plugin_service import get_plugin, list_plugins
 from vulnclaw.web.services.project_service import (
     assign_target,
@@ -64,6 +68,7 @@ from vulnclaw.web.services.schedule_service import (
     run_due,
     save_schedule,
 )
+from vulnclaw.web.services.storage_service import run_gc, storage_usage
 from vulnclaw.web.services.target_service import (
     clear_target,
     get_diff,
@@ -109,6 +114,7 @@ STATIC_DIR = Path(__file__).with_name("static")
 FRONTEND_DIST_DIR = Path(__file__).with_name("dist")
 task_manager = WebTaskManager()
 _STARTED_AT = time.monotonic()
+logger = logging.getLogger(__name__)
 
 
 def resolve_web_index() -> Path:
@@ -189,21 +195,21 @@ def create_app():
                 from vulnclaw.task_service import TaskCreateRequest, TaskOptions
 
                 def runner(job):
-                    try:
-                        start_task(
-                            task_manager,
-                            TaskCreateRequest(
-                                command=job.command,
-                                target=job.target,
-                                options=TaskOptions(**job.options),
-                            ),
-                        )
-                    except Exception:
-                        return
+                    start_task(
+                        task_manager,
+                        TaskCreateRequest(
+                            command=job.command,
+                            target=job.target,
+                            options=TaskOptions(**job.options),
+                        ),
+                    )
 
-                run_due(runner)
+                ran = run_due(runner)
+                for job in ran:
+                    if job.last_error:
+                        logger.warning("Scheduled job %s failed: %s", job.name, job.last_error)
             except Exception:
-                pass
+                logger.exception("Schedule loop iteration failed")
             await asyncio.sleep(5)
 
     @asynccontextmanager
@@ -220,6 +226,10 @@ def create_app():
     app = FastAPI(title="VulnClaw Web UI", version=__version__, lifespan=lifespan)
     app.add_middleware(SecurityHeadersMiddleware)
     app.add_middleware(AuthMiddleware)
+
+    @app.get("/api/version")
+    async def version():
+        return {"version": __version__}
 
     @app.get("/api/health")
     async def health():
@@ -242,11 +252,15 @@ def create_app():
 
     @app.get("/api/mcp")
     async def mcp_view():
-        return get_mcp_diagnostics().model_dump(mode="json")
+        return get_live_mcp_diagnostics().model_dump(mode="json")
 
     @app.post("/api/mcp/toggle")
     async def mcp_toggle(request: MCPToggleRequest):
-        result = toggle_mcp_server(request.name, request.enabled)
+        result = await toggle_mcp_server(
+            request.name,
+            request.enabled,
+            allowed_tools=request.allowed_tools,
+        )
         if result is None:
             raise HTTPException(status_code=404, detail="MCP server not found")
         return result
@@ -258,6 +272,18 @@ def create_app():
     @app.post("/api/config")
     async def config_update(request: ConfigUpdateRequest):
         return update_public_config(request).model_dump(mode="json")
+
+    @app.get("/api/storage")
+    async def storage():
+        return storage_usage()
+
+    @app.post("/api/gc")
+    async def gc(request: GCRequest):
+        return run_gc(
+            older_than=request.older_than,
+            keep_last=request.keep_last,
+            dry_run=request.dry_run,
+        )
 
     @app.get("/api/audit/export")
     async def audit_export(format: str = "jsonl"):
@@ -427,6 +453,13 @@ def create_app():
             raise HTTPException(status_code=404, detail="Task not found")
         return record.model_dump(mode="json")
 
+    @app.get("/api/tasks/{task_id}/events")
+    async def task_events(task_id: str, after_seq: int = 0, limit: int = 100):
+        if not task_manager.get_task(task_id):
+            raise HTTPException(status_code=404, detail="Task not found")
+        events = task_manager.events_after(task_id, after_seq=max(0, after_seq), limit=limit)
+        return [event.model_dump(mode="json") for event in events]
+
     @app.post("/api/tasks/{task_id}/stop")
     async def stop_task(task_id: str):
         if not task_manager.get_task(task_id):
@@ -461,8 +494,8 @@ def create_app():
         )
 
     @app.get("/api/targets")
-    async def targets():
-        return [item.model_dump(mode="json") for item in list_targets()]
+    async def targets(project: Optional[str] = None):
+        return [item.model_dump(mode="json") for item in list_targets(project=project)]
 
     @app.get("/api/targets/{target:path}/raw")
     async def target_raw(target: str):
@@ -585,6 +618,8 @@ def create_app():
                     request.output_path,
                     request.report_format,
                     request.template,
+                    request.project,
+                    request.run_name,
                 )
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc

@@ -317,12 +317,14 @@ async def _stream_chat_completion_message(
     full_text = ""
     reasoning_buffer = ""
     tool_calls_chunks: list[dict] = []
+    usage: Any = None
     stream = _ensure_async_iter(response)
     if stream is None:
         raise ValueError("LLM response is not a valid stream object")
 
     async for chunk in stream:
         if not chunk.choices:
+            usage = getattr(chunk, "usage", None) or usage
             continue
         delta = chunk.choices[0].delta
         reasoning = getattr(delta, "reasoning_content", None) or ""
@@ -339,10 +341,12 @@ async def _stream_chat_completion_message(
             full_text += content
 
         _collect_tool_call_deltas(delta, tool_calls_chunks)
+        usage = getattr(chunk, "usage", None) or usage
 
     if reasoning_buffer:
         full_text += f"<thinking>\n{reasoning_buffer}\n</thinking>\n"
     stream_sink.on_stream_end()
+    _record_stream_usage(agent, messages, tools, full_text, usage)
     return _message_from_stream(full_text, _assemble_tool_calls(tool_calls_chunks))
 
 
@@ -580,6 +584,26 @@ def _record_estimated_usage(
     runtime.prompt_tokens = int(getattr(runtime, "prompt_tokens", 0)) + prompt
     runtime.completion_tokens = int(getattr(runtime, "completion_tokens", 0)) + completion
     runtime.total_tokens = int(getattr(runtime, "total_tokens", 0)) + prompt + completion
+
+
+def _record_stream_usage(
+    agent: Any,
+    messages: list[dict[str, Any]],
+    tools: list[dict[str, Any]] | None,
+    response_text: str,
+    usage: Any,
+) -> None:
+    """Record one streamed LLM request exactly once.
+
+    OpenAI-compatible streams only return usage when ``stream_options`` asks for
+    it (or the provider chooses to include a final usage chunk). When it is
+    present use the provider numbers; otherwise estimate from the request and
+    the accumulated assistant text.
+    """
+    if usage is not None:
+        _record_response_usage(agent, SimpleNamespace(usage=usage))
+    else:
+        _record_estimated_usage(agent, messages, tools, response_text)
 
 
 async def _call_with_persistent_retries(
@@ -968,6 +992,7 @@ async def call_llm_stream(
         full_text = ""
         reasoning_buffer = ""
         tool_calls_chunks: list[dict] = []
+        usage: Any = None
 
         # 自动适配 sync/async Stream（sync Stream 用 _AsyncIterWrapper 包装）
         _stream = _ensure_async_iter(response)
@@ -994,11 +1019,13 @@ async def call_llm_stream(
 
                 # Handle tool_calls（流式 chat 模式也需要处理）
                 _collect_tool_call_deltas(delta, tool_calls_chunks)
+            usage = getattr(chunk, "usage", None) or usage
 
         if reasoning_buffer:
             full_text += f"<thinking>\n{reasoning_buffer}\n</thinking>\n"
 
         stream_sink.on_stream_end()
+        _record_stream_usage(agent, messages, tools, full_text, usage)
 
         # 如果有 tool_calls，路由到 handle_tool_calls（同 call_llm_auto_stream 的逻辑）
         if tool_calls_chunks:

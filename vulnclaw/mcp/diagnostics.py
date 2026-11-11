@@ -13,12 +13,19 @@ from vulnclaw.mcp.lifecycle import MCPLifecycleManager
 from vulnclaw.mcp.schemas import MCPDiagnosticsView, MCPServiceView
 
 
-def get_mcp_diagnostics() -> MCPDiagnosticsView:
-    """Return a snapshot of MCP server state and capabilities."""
+def get_mcp_diagnostics(manager: MCPLifecycleManager | None = None) -> MCPDiagnosticsView:
+    """Return a snapshot of MCP server state and capabilities.
+
+    When ``manager`` is supplied the caller owns its lifecycle (the Web control
+    plane keeps servers alive between requests); otherwise a short-lived manager
+    is started and stopped for this snapshot (CLI behavior).
+    """
     config = load_config()
-    manager = MCPLifecycleManager(config)
+    owned = manager is None
+    manager = manager or MCPLifecycleManager(config)
     try:
-        manager.start_enabled_servers()
+        if owned:
+            manager.start_enabled_servers()
         registry_servers = manager.registry.get_all_servers()
         services: list[MCPServiceView] = []
         local_count = 0
@@ -50,6 +57,7 @@ def get_mcp_diagnostics() -> MCPDiagnosticsView:
                     can_execute=can_execute,
                     tool_count=len(tools),
                     tools=tools,
+                    allowed_tools=list(getattr(server_config, "allowed_tools", ()) or ()),
                     error=state.error if state else None,
                     last_error_type=state.last_error_type if state else None,
                     started_at=state.started_at if state else None,
@@ -69,4 +77,5 @@ def get_mcp_diagnostics() -> MCPDiagnosticsView:
             services=services,
         )
     finally:
-        manager.stop_all()
+        if owned:
+            manager.stop_all()

@@ -92,3 +92,17 @@ def test_bundle_file_round_trip(store, tmp_path):
     # Plain json.load must succeed: the bundle is UTF-8 with CJK-safe ensure_ascii=False.
     raw = json.loads(destination.read_text(encoding="utf-8"))
     assert raw["entry_count"] == 1
+
+
+def test_ensure_default_bundle_restores_packaged_bundle(tmp_path):
+    from vulnclaw.kb.pack import ensure_default_bundle
+
+    store = KnowledgeStore(store_dir=tmp_path / "empty")
+    assert sum(store.get_stats().values()) == 0
+
+    added = ensure_default_bundle(store)
+
+    assert added > 0
+    assert sum(store.get_stats().values()) > 0
+    # A second call is a no-op once data exists.
+    assert ensure_default_bundle(store) == 0

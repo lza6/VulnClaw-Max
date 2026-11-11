@@ -6,14 +6,17 @@ import { RunDetailDialog } from "../components/RunDetailDialog";
 import { SectionCard } from "../components/SectionCard";
 import { useT, type TFunction } from "../i18n";
 import { useProjectsQuery, useRunsQuery, useTargetDiffQuery, useTargetSnapshotsQuery, useTargetsQuery, useTasksQuery } from "../hooks/queries";
+import type { RunDetail } from "../types/api";
 import { formatPhaseLabel, formatResumeStrategy, formatTaskCommand, formatTaskStatus, formatTaskTitle } from "../utils/taskLabels";
 
 interface HistoryPageProps {
   selectedTarget: string | null;
+  initialProject?: string;
   onSelectTarget: (target: string | null) => void;
   onOpenHome: () => void;
   onOpenReports: (target: string) => void;
   onOpenTarget: (target: string) => void;
+  onResumeRun: (run: RunDetail) => Promise<void> | void;
 }
 
 function formatTime(value: string | undefined, t: TFunction): string {
@@ -35,7 +38,7 @@ function diffConclusion(diff: {
   return t("history.diff_no_delta");
 }
 
-export function HistoryPage({ selectedTarget, onSelectTarget, onOpenHome, onOpenReports, onOpenTarget }: HistoryPageProps) {
+export function HistoryPage({ selectedTarget, initialProject = "", onSelectTarget, onOpenHome, onOpenReports, onOpenTarget, onResumeRun }: HistoryPageProps) {
   const { t } = useT();
   const queryClient = useQueryClient();
   const targetsQuery = useTargetsQuery();
@@ -43,7 +46,11 @@ export function HistoryPage({ selectedTarget, onSelectTarget, onOpenHome, onOpen
   const projectsQuery = useProjectsQuery();
   const runsQuery = useRunsQuery();
   const [localTarget, setLocalTarget] = useState("");
-  const [projectFilter, setProjectFilter] = useState<string>("");
+  const [projectFilter, setProjectFilter] = useState<string>(initialProject);
+
+  useEffect(() => {
+    setProjectFilter(initialProject);
+  }, [initialProject]);
   const [fromSnapshotId, setFromSnapshotId] = useState<string | null>(null);
   const [toSnapshotId, setToSnapshotId] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -360,7 +367,12 @@ export function HistoryPage({ selectedTarget, onSelectTarget, onOpenHome, onOpen
           if (snapshotId) void handleRollback(snapshotId);
         }}
       />
-      <RunDetailDialog open={Boolean(runDetailName)} runName={runDetailName} onClose={() => setRunDetailName(null)} />
+      <RunDetailDialog
+        open={Boolean(runDetailName)}
+        runName={runDetailName}
+        onClose={() => setRunDetailName(null)}
+        onResume={onResumeRun}
+      />
     </section>
   );
 }

@@ -17,7 +17,7 @@ function seedTarget(): void {
 async function openRiskPage(page: Page) {
   await page.goto("/");
   await page.locator('button.nav-item[aria-label="发现"]').click();
-  await page.locator("select").first().selectOption("https://example.com");
+  await page.getByTestId("risk-target-select").selectOption("https://example.com");
 }
 
 test("attack surface view opens the 3D scene and keeps an equivalent table", async ({ page }) => {
@@ -53,4 +53,59 @@ test("attack surface view falls back to a static list when WebGL is unavailable"
   await expect(panel.locator(".attack-surface-canvas .empty-state")).toContainText("WebGL");
   await expect(panel.locator("canvas")).toHaveCount(0);
   await expect(panel.getByRole("table")).toBeVisible();
+});
+
+test.describe("reduced motion", () => {
+  test.use({ reducedMotion: "reduce" });
+
+  test("renders a static SVG topology instead of the 3D canvas", async ({ page }) => {
+    seedTarget();
+    await openRiskPage(page);
+    const panel = page.locator(".attack-surface");
+    await panel.getByRole("button").click();
+    await expect(panel.locator("svg.attack-surface-static")).toBeVisible();
+    await expect(panel.locator("canvas")).toHaveCount(0);
+    await expect(panel.getByRole("table")).toBeVisible();
+  });
+});
+
+test("3D scene keeps a 50fps browser frame budget while dragging", async ({ page }) => {
+  seedTarget();
+  await openRiskPage(page);
+  const panel = page.locator(".attack-surface");
+  await panel.getByRole("button").click();
+  const canvas = panel.locator("canvas");
+  await expect(canvas).toBeVisible({ timeout: 20_000 });
+
+  const fps = await page.evaluate(async () => {
+    const element = document.querySelector(".attack-surface canvas") as HTMLCanvasElement | null;
+    if (!element) return 0;
+    const rect = element.getBoundingClientRect();
+    const fire = (type: string, x: number, y: number) =>
+      element.dispatchEvent(
+        new PointerEvent(type, {
+          clientX: rect.left + x,
+          clientY: rect.top + y,
+          bubbles: true,
+          pointerId: 1,
+          pointerType: "mouse",
+          buttons: 1,
+        }),
+      );
+    fire("pointerdown", rect.width / 2, rect.height / 2);
+    const deltas: number[] = [];
+    let last = performance.now();
+    for (let index = 0; index < 60; index += 1) {
+      await new Promise((resolve) => requestAnimationFrame(resolve));
+      fire("pointermove", rect.width / 2 + index, rect.height / 2);
+      const now = performance.now();
+      deltas.push(now - last);
+      last = now;
+    }
+    fire("pointerup", rect.width / 2, rect.height / 2);
+    const average = deltas.reduce((sum, value) => sum + value, 0) / deltas.length;
+    return 1000 / average;
+  });
+  expect(fps).toBeGreaterThanOrEqual(50);
+  await page.screenshot({ path: "e2e-artifacts/attack-surface-fps.png", fullPage: true });
 });

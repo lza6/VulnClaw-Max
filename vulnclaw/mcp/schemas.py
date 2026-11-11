@@ -28,6 +28,7 @@ class MCPServiceView(BaseModel):
     can_execute: bool
     tool_count: int = 0
     tools: list[str] = Field(default_factory=list)
+    allowed_tools: list[str] = Field(default_factory=list)
     error: Optional[str] = None
     last_error_type: Optional[str] = None
     started_at: Optional[str] = None

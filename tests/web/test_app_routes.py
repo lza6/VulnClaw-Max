@@ -21,11 +21,11 @@ def client(monkeypatch, tmp_path):
 
     monkeypatch.setattr(app, "get_public_config", dumpable)
     monkeypatch.setattr(app, "update_public_config", lambda _request: dumpable())
-    monkeypatch.setattr(app, "get_mcp_diagnostics", dumpable)
+    monkeypatch.setattr(app, "get_live_mcp_diagnostics", dumpable)
     monkeypatch.setattr(app, "get_constraint_audit", dumpable)
     monkeypatch.setattr(app, "get_provider_presets", dumpable)
     monkeypatch.setattr(app, "fetch_models", lambda _request: dumpable())
-    monkeypatch.setattr(app, "list_targets", lambda: [])
+    monkeypatch.setattr(app, "list_targets", lambda project=None: [])
     monkeypatch.setattr(app, "get_target", lambda _target: None)
     monkeypatch.setattr(app, "get_target_raw", lambda _target: None)
     monkeypatch.setattr(app, "get_preview", lambda _target, snapshot_id=None: None)

@@ -1,20 +1,53 @@
 import { useRunDetailQuery } from "../hooks/queries";
 import { useDialogFocus } from "../hooks/useDialogFocus";
 import { useT } from "../i18n";
+import type { RunDetail } from "../types/api";
 
 interface RunDetailDialogProps {
   open: boolean;
   runName: string | null;
   onClose: () => void;
+  onResume?: (run: RunDetail) => Promise<void> | void;
 }
 
-export function RunDetailDialog({ open, runName, onClose }: RunDetailDialogProps) {
+function asText(value: unknown, fallback = ""): string {
+  return typeof value === "string" && value.trim() ? value : fallback;
+}
+
+function findingItems(raw: unknown): Array<Record<string, unknown>> {
+  if (Array.isArray(raw)) return raw.filter((item): item is Record<string, unknown> => typeof item === "object" && item !== null);
+  if (raw && typeof raw === "object" && Array.isArray((raw as Record<string, unknown>).findings)) {
+    return ((raw as Record<string, unknown>).findings as unknown[]).filter(
+      (item): item is Record<string, unknown> => typeof item === "object" && item !== null,
+    );
+  }
+  return [];
+}
+
+function formatDuration(seconds: number): string {
+  if (!Number.isFinite(seconds) || seconds <= 0) return "0s";
+  if (seconds < 60) return `${seconds.toFixed(1)}s`;
+  const minutes = Math.floor(seconds / 60);
+  const rest = Math.round(seconds % 60);
+  return `${minutes}m ${rest}s`;
+}
+
+export function RunDetailDialog({ open, runName, onClose, onResume }: RunDetailDialogProps) {
   const { t } = useT();
   const dialogRef = useDialogFocus<HTMLElement>(open && Boolean(runName), onClose);
   const query = useRunDetailQuery(open ? runName : null);
 
   if (!open || !runName) return null;
   const run = query.data;
+  const evidence = run ? findingItems(run.findings) : [];
+  const canResume = Boolean(
+    run &&
+      onResume &&
+      run.targets.length &&
+      (run.status === "failed" ||
+        run.status === "interrupted" ||
+        typeof run.resume?.last_snapshot_id === "string"),
+  );
 
   return (
     <div className="dialog-backdrop" role="presentation" onMouseDown={onClose}>
@@ -40,6 +73,11 @@ export function RunDetailDialog({ open, runName, onClose }: RunDetailDialogProps
             )}
           </div>
           <div className="report-dialog-actions">
+            {canResume && (
+              <button className="secondary-btn" type="button" onClick={() => run && void onResume?.(run)}>
+                {t("run.resume")}
+              </button>
+            )}
             <button className="secondary-btn" type="button" onClick={onClose}>
               {t("dialog.close")}
             </button>
@@ -88,6 +126,41 @@ export function RunDetailDialog({ open, runName, onClose }: RunDetailDialogProps
                   ))
                 ) : (
                   <div className="empty-state">{t("run.no_reports")}</div>
+                )}
+              </div>
+            </section>
+            <section className="run-detail-wide">
+              <h4>{t("run.phases")}</h4>
+              <div className="list run-phases">
+                {run.phases.length ? (
+                  run.phases.map((phase) => (
+                    <div key={phase.name} className="list-item">
+                      <strong>{phase.name}</strong>
+                      <span className="muted-inline">
+                        {formatDuration(phase.duration_seconds)} · {t("run.events_count", { count: String(phase.event_count) })}
+                      </span>
+                    </div>
+                  ))
+                ) : (
+                  <div className="empty-state">{t("run.no_phases")}</div>
+                )}
+              </div>
+            </section>
+            <section className="run-detail-wide">
+              <h4>{t("run.evidence")}</h4>
+              <div className="list list-scroll run-evidence">
+                {evidence.length ? (
+                  evidence.map((item, index) => (
+                    <article key={`${asText(item.finding_id, "")}-${index}`} className="list-item">
+                      <strong>{asText(item.title, t("run.event"))}</strong>
+                      <span className="muted-inline">
+                        {asText(item.severity, t("risk.uncategorized"))} · {asText(item.lifecycle_status, t("run.event"))}
+                      </span>
+                      {asText(item.evidence) && <code className="run-event-payload">{asText(item.evidence).slice(0, 320)}</code>}
+                    </article>
+                  ))
+                ) : (
+                  <div className="empty-state">{t("run.no_evidence")}</div>
                 )}
               </div>
             </section>

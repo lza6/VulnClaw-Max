@@ -2,7 +2,8 @@ import { lazy, Suspense, useState } from "react";
 import { SectionCard } from "./SectionCard";
 import { useT } from "../i18n";
 import { useMotionPrefs } from "../motion/useMotionPrefs";
-import type { AttackSurfaceNode } from "../scene/AttackSurfaceScene";
+import { AttackSurfaceStatic } from "../scene/AttackSurfaceStatic";
+import type { AttackSurfaceNode } from "../scene/types";
 
 const AttackSurfaceScene = lazy(() => import("../scene/AttackSurfaceScene"));
 
@@ -62,7 +63,18 @@ export function AttackSurfacePanel({ target, items }: AttackSurfacePanelProps) {
 
         {expanded && (
           <>
-            <div className={`attack-surface-canvas mode-${mode ?? "unsupported"}`}>
+            <div
+              className={`attack-surface-canvas mode-${mode ?? "unsupported"}`}
+              role={mode === "3d" ? "img" : undefined}
+              aria-label={
+                mode === "3d"
+                  ? t("risk.attack_surface_aria", {
+                      count: String(items.length),
+                      serious: String(serious),
+                    })
+                  : undefined
+              }
+            >
               {mode === "3d" ? (
                 <Suspense fallback={<div className="empty-state">{t("risk.attack_surface_loading")}</div>}>
                   <AttackSurfaceScene
@@ -70,10 +82,15 @@ export function AttackSurfacePanel({ target, items }: AttackSurfacePanelProps) {
                     nodes={items.map((item) => ({ id: item.id, label: item.label, severity: item.severity }))}
                   />
                 </Suspense>
+              ) : mode === "reduce" ? (
+                <>
+                  <AttackSurfaceStatic
+                    nodes={items.map((item) => ({ id: item.id, label: item.label, severity: item.severity }))}
+                  />
+                  <p className="inline-note">{t("risk.attack_surface_reduced")}</p>
+                </>
               ) : (
-                <div className="empty-state">
-                  {mode === "reduce" ? t("risk.attack_surface_reduced") : t("risk.attack_surface_unsupported")}
-                </div>
+                <div className="empty-state">{t("risk.attack_surface_unsupported")}</div>
               )}
             </div>
 

@@ -149,6 +149,9 @@ testpaths = ["tests"]
 # Tests import scripts/ (e.g. the local provider mock) regardless of whether
 # pytest is launched as `pytest` or `python -m pytest`.
 pythonpath = ["."]
+markers = [
+    "slow: long-running performance or stability checks (not part of the default fast loop)",
+]
 
 # Coverage is opt-in to keep normal runs fast:
 #   pytest --cov=vulnclaw --cov-report=term-missing

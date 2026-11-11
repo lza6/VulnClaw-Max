@@ -1,5 +1,8 @@
+import { TASK_EVENT_NAMES } from "./taskEvents";
 import type {
   ConfigView,
+  GCResult,
+  StorageUsage,
   ConstraintAuditView,
   ConfigUpdateRequest,
   FindingTriageRequest,
@@ -113,15 +116,30 @@ export function getMcpDiagnostics(): Promise<MCPDiagnosticsView> {
   return requestJson<MCPDiagnosticsView>("/api/mcp");
 }
 
-export function toggleMcpServer(name: string, enabled: boolean): Promise<{ name: string; enabled: boolean; applies_to: string }> {
+export function toggleMcpServer(
+  name: string,
+  enabled: boolean,
+  allowedTools?: string[],
+): Promise<{ name: string; enabled: boolean; allowed_tools: string[]; applies_to: string; running: boolean; tool_count: number }> {
   return requestJson("/api/mcp/toggle", {
     method: "POST",
-    body: JSON.stringify({ name, enabled }),
+    body: JSON.stringify({ name, enabled, allowed_tools: allowedTools }),
   });
 }
 
 export function getConstraintAudit(): Promise<ConstraintAuditView> {
   return requestJson<ConstraintAuditView>("/api/constraint-audit");
+}
+
+export function getStorage(): Promise<StorageUsage> {
+  return requestJson<StorageUsage>("/api/storage");
+}
+
+export function runGc(payload: { older_than: number; keep_last: number; dry_run: boolean }): Promise<GCResult> {
+  return requestJson<GCResult>("/api/gc", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
 }
 
 export function getAuditExportUrl(format: "jsonl" | "csv"): string {
@@ -231,10 +249,18 @@ export function generateTargetReport(
   target: string,
   reportFormat: "markdown" | "html" | "pdf" = "markdown",
   template: ReportTemplate = "pentest",
+  project?: string,
+  runName?: string,
 ): Promise<{ status: string; path: string }> {
   return requestJson("/api/reports/target", {
     method: "POST",
-    body: JSON.stringify({ target, report_format: reportFormat, template }),
+    body: JSON.stringify({
+      target,
+      report_format: reportFormat,
+      template,
+      project,
+      run_name: runName,
+    }),
   });
 }
 
@@ -275,14 +301,35 @@ export function createTask(command: TaskCommand, target: string, resume: boolean
   });
 }
 
+export function resumeRun(run: RunDetail): Promise<TaskRecord> {
+  const snapshotId = typeof run.resume?.last_snapshot_id === "string" ? run.resume.last_snapshot_id : undefined;
+  return requestJson<TaskRecord>("/api/tasks/run", {
+    method: "POST",
+    body: JSON.stringify({
+      command: run.command,
+      target: run.targets[0] ?? "",
+      resume: true,
+      snapshot_id: snapshotId,
+      resume_run_name: run.run_name,
+      options: {},
+    }),
+  });
+}
+
 export function stopTask(taskId: string): Promise<{ status: string; task_id: string }> {
   return requestJson(`/api/tasks/${taskId}/stop`, {
     method: "POST",
   });
 }
 
-export function openTaskStream(taskId: string, onEvent: (event: TaskEvent) => void): EventSource {
+export function openTaskStream(
+  taskId: string,
+  onEvent: (event: TaskEvent) => void,
+  handlers: { onOpen?: () => void; onError?: () => void } = {},
+): EventSource {
   const source = new EventSource(`/api/tasks/${taskId}/stream`);
+  source.onopen = () => handlers.onOpen?.();
+  source.onerror = () => handlers.onError?.();
   const handler = (message: MessageEvent<string>) => {
     try {
       const parsed = JSON.parse(message.data) as TaskEvent;
@@ -292,19 +339,9 @@ export function openTaskStream(taskId: string, onEvent: (event: TaskEvent) => vo
     }
   };
 
-  source.addEventListener("task_created", handler as EventListener);
-  source.addEventListener("task_queued", handler as EventListener);
-  source.addEventListener("task_restoring", handler as EventListener);
-  source.addEventListener("task_started", handler as EventListener);
-  source.addEventListener("task_state_changed", handler as EventListener);
-  source.addEventListener("legacy_import", handler as EventListener);
-  source.addEventListener("round_output", handler as EventListener);
-  source.addEventListener("cycle_completed", handler as EventListener);
-  source.addEventListener("task_completed", handler as EventListener);
-  source.addEventListener("task_failed", handler as EventListener);
-  source.addEventListener("task_stopped", handler as EventListener);
-  source.addEventListener("task_interrupted", handler as EventListener);
-  source.addEventListener("event_gap", handler as EventListener);
+  for (const eventName of TASK_EVENT_NAMES) {
+    source.addEventListener(eventName, handler as EventListener);
+  }
   source.onmessage = handler;
   return source;
 }

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import re
 from datetime import datetime
 from pathlib import Path
@@ -10,6 +11,7 @@ from vulnclaw.config.settings import PROJECTS_DIR, SESSIONS_DIR, ensure_dirs, lo
 from vulnclaw.i18n import init_i18n
 from vulnclaw.report.generator import generate_report_from_target_state
 from vulnclaw.report.variants import normalize_template
+from vulnclaw.run_context import load_run_context
 from vulnclaw.target_state.store import load_target_state
 from vulnclaw.web.schemas import ReportContentView
 from vulnclaw.web.services.project_service import find_project_for_target, report_dir
@@ -79,15 +81,34 @@ def list_reports(limit: int = 50) -> list[dict[str, str | int]]:
     return items[:limit]
 
 
+def _load_run_target_state(target: str, run_name: str) -> dict:
+    """Load a target-state snapshot from a specific run directory."""
+    context = load_run_context(run_name)
+    state_dir = context.state_dir(target)
+    current = state_dir / "current.json"
+    if not current.is_file():
+        raise FileNotFoundError(f"Run {run_name} has no target state for {target}")
+    raw = json.loads(current.read_text(encoding="utf-8"))
+    if not isinstance(raw, dict):
+        raise ValueError(f"Run {run_name} target state is not an object")
+    return raw
+
+
 def generate_target_report(
     target: str,
     output_path: str | None = None,
     report_format: str = "markdown",
     template: str = "pentest",
+    project: str | None = None,
+    run_name: str | None = None,
 ) -> str:
-    """Generate a report from target state and return the saved path."""
+    """Generate a report from target state and return the saved path.
+
+    When ``run_name`` is supplied the report is built from that run's immutable
+    target snapshot; otherwise it uses the current accumulated target state.
+    """
     template_kind = normalize_template(template)
-    project_slug = find_project_for_target(target)
+    project_slug = project or find_project_for_target(target)
     root = report_dir(project_slug) if project_slug else SESSIONS_DIR
     if root is None:
         root = SESSIONS_DIR
@@ -97,7 +118,7 @@ def generate_target_report(
     # initialize it from the saved config.session.language before generating —
     # otherwise the report always falls back to auto-detection (defaults to zh).
     init_i18n(config=load_config())
-    raw = load_target_state(target)
+    raw = _load_run_target_state(target, run_name) if run_name else load_target_state(target)
     if not raw:
         raise FileNotFoundError(f"Target state not found: {target}")
     requested = report_format.lower()

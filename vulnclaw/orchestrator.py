@@ -400,4 +400,12 @@ def _build_summary(
         summary["tokens_output"] = int(getattr(runtime, "completion_tokens", 0))
         summary["tokens_total"] = int(getattr(runtime, "total_tokens", 0))
         summary["llm_calls"] = int(getattr(runtime, "llm_calls", 0))
+        llm_config = getattr(getattr(agent, "config", None), "llm", None)
+        input_price = float(getattr(llm_config, "input_cost_per_million", 0.0) or 0.0)
+        output_price = float(getattr(llm_config, "output_cost_per_million", 0.0) or 0.0)
+        summary["cost_estimate"] = round(
+            (summary["tokens_input"] / 1_000_000.0) * input_price
+            + (summary["tokens_output"] / 1_000_000.0) * output_price,
+            6,
+        )
     return summary

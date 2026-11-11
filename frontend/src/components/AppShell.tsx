@@ -42,6 +42,9 @@ interface AppShellProps<T extends string> {
   onOpenReports: () => void;
   onOpenTarget: (target: string) => void;
   onStopTask: () => void;
+  projects?: Array<{ slug: string; name: string }>;
+  projectFilter?: string;
+  onProjectChange?: (project: string) => void;
   children: ReactNode;
 }
 
@@ -64,6 +67,9 @@ export function AppShell<T extends string>({
   onOpenReports,
   onOpenTarget,
   onStopTask,
+  projects = [],
+  projectFilter = "",
+  onProjectChange,
   children,
 }: AppShellProps<T>) {
   const { t } = useT();
@@ -85,6 +91,9 @@ export function AppShell<T extends string>({
           copy={meta.copy}
           selectedTarget={selectedTarget}
           activeTaskStatus={activeTask?.status}
+          projects={projects}
+          projectFilter={projectFilter}
+          onProjectChange={onProjectChange}
         />
         {backendUnavailable && (
           <section className="connection-banner" role="status">

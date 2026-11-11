@@ -105,6 +105,7 @@ tui/target/
 graft/
 .mcp.json
 .ignore
+frontend/coverage/
 frontend/test-results/
 frontend/playwright-report/
 frontend/e2e-artifacts/

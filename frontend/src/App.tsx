@@ -1,23 +1,39 @@
-import { useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import type { ShellAction } from "./components/AppShell";
 import { AppShell } from "./components/AppShell";
 import { ConfirmDialog } from "./components/ConfirmDialog";
 import { ToastHost, type ToastItem, type ToastTone } from "./components/ToastHost";
-import { HistoryPage } from "./pages/HistoryPage";
-import { HomePage } from "./pages/HomePage";
-import { PluginsPage } from "./pages/PluginsPage";
-import { ReportsPage } from "./pages/ReportsPage";
-import { RiskResultsPage } from "./pages/RiskResultsPage";
-import { SafetyBoundaryPage } from "./pages/SafetyBoundaryPage";
-import { SettingsPage, type SettingsSection } from "./pages/SettingsPage";
-import { TaskConsolePage } from "./pages/TaskConsolePage";
-import { createTask, getTasks, openTaskStream, stopTask } from "./api/web";
-import { useConfigQuery } from "./hooks/queries";
+import type { SettingsSection } from "./pages/SettingsPage";
+import { createTask, getTasks, openTaskStream, resumeRun, stopTask } from "./api/web";
+import { useConfigQuery, useProjectsQuery } from "./hooks/queries";
 import { useT, type TFunction } from "./i18n";
-import type { TaskCommand, TaskEvent, TaskOptions, TaskRecord, TaskSummary } from "./types/api";
+import type { RunDetail, TaskCommand, TaskEvent, TaskOptions, TaskRecord, TaskSummary } from "./types/api";
 import { formatTaskTitle } from "./utils/taskLabels";
 import { useThemeMode } from "./utils/theme";
+
+const HomePage = lazy(() => import("./pages/HomePage").then((module) => ({ default: module.HomePage })));
+const RiskResultsPage = lazy(() =>
+  import("./pages/RiskResultsPage").then((module) => ({ default: module.RiskResultsPage })),
+);
+const ReportsPage = lazy(() =>
+  import("./pages/ReportsPage").then((module) => ({ default: module.ReportsPage })),
+);
+const SafetyBoundaryPage = lazy(() =>
+  import("./pages/SafetyBoundaryPage").then((module) => ({ default: module.SafetyBoundaryPage })),
+);
+const HistoryPage = lazy(() =>
+  import("./pages/HistoryPage").then((module) => ({ default: module.HistoryPage })),
+);
+const PluginsPage = lazy(() =>
+  import("./pages/PluginsPage").then((module) => ({ default: module.PluginsPage })),
+);
+const SettingsPage = lazy(() =>
+  import("./pages/SettingsPage").then((module) => ({ default: module.SettingsPage })),
+);
+const TaskConsolePage = lazy(() =>
+  import("./pages/TaskConsolePage").then((module) => ({ default: module.TaskConsolePage })),
+);
 
 type AppView = "home" | "risk" | "reports" | "boundary" | "history" | "plugins" | "settings" | "advanced";
 
@@ -95,6 +111,7 @@ function viewHash(view: AppView): string {
 export function App() {
   useThemeMode();
   const configQuery = useConfigQuery();
+  const projectsQuery = useProjectsQuery();
   const queryClient = useQueryClient();
   const { t } = useT();
   const [activeView, setActiveView] = useState<AppView>(() => viewFromHash());
@@ -103,6 +120,8 @@ export function App() {
   const [reportFocus, setReportFocus] = useState<ReportFocus | null>(null);
   const [settingsSection, setSettingsSection] = useState<SettingsSection>("basic");
   const [taskEvents, setTaskEvents] = useState<TaskEvent[]>([]);
+  const [streamReconnecting, setStreamReconnecting] = useState(false);
+  const [projectFilter, setProjectFilter] = useState("");
   const [stopConfirmOpen, setStopConfirmOpen] = useState(false);
   const [toasts, setToasts] = useState<ToastItem[]>([]);
 
@@ -171,9 +190,13 @@ export function App() {
 
   useEffect(() => {
     if (!activeTask) return;
-    const source = openTaskStream(activeTask.task_id, (event) => {
+    setStreamReconnecting(false);
+    const source = openTaskStream(
+      activeTask.task_id,
+      (event) => {
       if (["task_completed", "task_failed", "task_stopped", "task_interrupted"].includes(event.event)) {
         source.close();
+        setStreamReconnecting(false);
       }
       setTaskEvents((prev) => [...prev.slice(-79), event]);
       const nextStatus = event.payload.status;
@@ -218,7 +241,12 @@ export function App() {
         refreshTaskData(activeTask.target);
         pushToast("info", t("toast.task_stopped"), t("toast.task_stopped_copy"));
       }
-    });
+      },
+      {
+        onOpen: () => setStreamReconnecting(false),
+        onError: () => setStreamReconnecting(true),
+      },
+    );
     return () => source.close();
   }, [activeTask?.task_id]);
 
@@ -229,6 +257,23 @@ export function App() {
     setTaskEvents([]);
     pushToast("success", t("toast.task_started"), formatTaskTitle(task.command, task.target));
     return task;
+  }
+
+  async function handleResumeRun(run: RunDetail): Promise<void> {
+    try {
+      const task = await resumeRun(run);
+      setActiveTask(task);
+      setSelectedTarget(task.target);
+      setTaskEvents([]);
+      pushToast("success", t("toast.task_started"), formatTaskTitle(task.command, task.target));
+      navigateToView("advanced");
+    } catch (error) {
+      pushToast(
+        "error",
+        t("toast.task_failed"),
+        error instanceof Error ? error.message : t("toast.task_failed_copy"),
+      );
+    }
   }
 
   async function handleStopTask() {
@@ -345,10 +390,20 @@ export function App() {
         navigateToView("risk");
       }}
       onStopTask={() => setStopConfirmOpen(true)}
+      projects={projectsQuery.data ?? []}
+      projectFilter={projectFilter}
+      onProjectChange={setProjectFilter}
     >
+      {streamReconnecting && (
+        <div className="stream-banner" data-testid="stream-status" role="status">
+          {t("stream.reconnecting")}
+        </div>
+      )}
+      <Suspense fallback={<div className="empty-state" data-testid="view-loading">{t("app.loading")}</div>}>
       {activeView === "home" && (
         <HomePage
           selectedTarget={selectedTarget}
+          initialProject={projectFilter}
           activeTask={activeTask}
           latestEvent={latestEvent}
           taskEvents={taskEvents}
@@ -384,6 +439,7 @@ export function App() {
       {activeView === "history" && (
         <HistoryPage
           selectedTarget={selectedTarget}
+          initialProject={projectFilter}
           onSelectTarget={setSelectedTarget}
           onOpenHome={() => navigateToView("home")}
           onOpenReports={(target) => openReports(target)}
@@ -391,6 +447,7 @@ export function App() {
             setSelectedTarget(target);
             navigateToView("risk");
           }}
+          onResumeRun={handleResumeRun}
         />
       )}
 
@@ -417,6 +474,7 @@ export function App() {
           }}
         />
       )}
+      </Suspense>
 
       <ConfirmDialog
         open={stopConfirmOpen}

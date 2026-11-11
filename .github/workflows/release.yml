@@ -7,6 +7,7 @@ on:
 
 permissions:
   contents: write
+  id-token: write
 
 jobs:
   build-and-release:
@@ -47,6 +48,9 @@ jobs:
         with:
           name: vulnclaw-dist
           path: dist/*
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
 
       - name: Create GitHub release
         uses: softprops/action-gh-release@v2

@@ -30,10 +30,13 @@ def _view(job: ScheduledJob) -> ScheduleView:
         target=job.target,
         command=job.command,
         interval_seconds=job.interval_seconds,
+        cron=job.cron,
         enabled=job.enabled,
         options=job.options,
         last_run=job.last_run,
         next_run=job.next_run,
+        last_error=job.last_error,
+        last_error_at=job.last_error_at,
     )
 
 
@@ -44,17 +47,17 @@ def list_schedules() -> list[ScheduleView]:
 def save_schedule(request: ScheduleUpsertRequest) -> ScheduleView:
     scheduler = Scheduler.from_dicts(_load())
     scheduler.jobs = [job for job in scheduler.jobs if job.name != request.name]
-    scheduler.jobs.append(
-        ScheduledJob(
-            name=request.name,
-            target=request.target,
-            command=request.command,
-            interval_seconds=request.interval_seconds,
-            enabled=request.enabled,
-            options=request.options,
-            next_run=time.time() + request.interval_seconds,
-        )
+    job = ScheduledJob(
+        name=request.name,
+        target=request.target,
+        command=request.command,
+        interval_seconds=request.interval_seconds,
+        cron=request.cron,
+        enabled=request.enabled,
+        options=request.options,
     )
+    job.next_run = job.next_after(time.time())
+    scheduler.jobs.append(job)
     atomic_write_json(Path(SCHEDULES_FILE), scheduler.to_dicts())
     return _view(scheduler.jobs[-1])
 

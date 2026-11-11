@@ -365,6 +365,13 @@ export function TaskConsolePage({
                     })}
                   </div>
                 )}
+                {Boolean(activeTask.summary?.cost_estimate) && (
+                  <div className="terminal-line dim">
+                    {t("console.cost_line", {
+                      cost: Number(activeTask.summary?.cost_estimate ?? 0).toFixed(6),
+                    })}
+                  </div>
+                )}
               </>
             ) : (
               <div className="terminal-line dim">{t("console.no_running")}</div>

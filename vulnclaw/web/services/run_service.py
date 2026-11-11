@@ -4,10 +4,11 @@ from __future__ import annotations
 
 import json
 import logging
+from datetime import datetime
 from pathlib import Path
 
 from vulnclaw.config.settings import RUNS_DIR, ensure_dirs
-from vulnclaw.web.schemas import RunDetailView, RunEventView, RunSummaryView
+from vulnclaw.web.schemas import RunDetailView, RunEventView, RunPhaseView, RunSummaryView
 
 logger = logging.getLogger(__name__)
 
@@ -53,15 +54,48 @@ def get_run(run_name: str) -> RunDetailView | None:
         return None
 
     summary = _summary(raw)
+    events = _read_events(run_dir / "events" / "events.jsonl")
     return RunDetailView(
         **summary.model_dump(),
         run_dir=run_name,
         artifacts=dict(raw.get("artifacts") or {}),
         resume=dict(raw.get("resume") or {}),
-        events=_read_events(run_dir / "events" / "events.jsonl"),
+        events=events,
+        phases=_build_phases(events),
         findings=_read_findings(run_dir / "findings" / "findings.json"),
         reports=_list_reports(run_dir / "reports"),
     )
+
+
+def _build_phases(events: list[RunEventView]) -> list[RunPhaseView]:
+    """Group persisted run events by kind and compute their wall-clock span."""
+    groups: dict[str, list[tuple[datetime, str]]] = {}
+    for event in events:
+        timestamp = event.timestamp
+        if not timestamp:
+            continue
+        try:
+            parsed = datetime.fromisoformat(timestamp)
+        except ValueError:
+            continue
+        groups.setdefault(event.kind or "event", []).append((parsed, timestamp))
+
+    phases: list[RunPhaseView] = []
+    for name, items in groups.items():
+        items.sort(key=lambda item: item[0])
+        started, started_raw = items[0]
+        ended, ended_raw = items[-1]
+        phases.append(
+            RunPhaseView(
+                name=name,
+                started_at=started_raw,
+                ended_at=ended_raw,
+                duration_seconds=max(0.0, (ended - started).total_seconds()),
+                event_count=len(items),
+            )
+        )
+    phases.sort(key=lambda item: item.started_at)
+    return phases
 
 
 def _summary(raw: dict) -> RunSummaryView:

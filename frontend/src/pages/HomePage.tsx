@@ -22,6 +22,7 @@ type CheckMode = "quick" | "standard" | "deep" | "continuous";
 
 interface HomePageProps {
   selectedTarget: string | null;
+  initialProject?: string;
   activeTask: TaskRecord | null;
   latestEvent: TaskEvent | null;
   taskEvents: TaskEvent[];
@@ -123,7 +124,7 @@ function uniqueActions(actions: Array<string | undefined>): string[] {
   return Array.from(new Set(actions.filter((action): action is string => Boolean(action))));
 }
 
-export function HomePage({ selectedTarget, activeTask, latestEvent, taskEvents, onCreateTask, onOpenRisk, onOpenReports, onOpenBoundary }: HomePageProps) {
+export function HomePage({ selectedTarget, initialProject = "", activeTask, latestEvent, taskEvents, onCreateTask, onOpenRisk, onOpenReports, onOpenBoundary }: HomePageProps) {
   const { t } = useT();
   const { reduce: reduceMotion, seconds, ease } = useMotionPrefs();
   const projectsQuery = useProjectsQuery();
@@ -131,7 +132,11 @@ export function HomePage({ selectedTarget, activeTask, latestEvent, taskEvents, 
   const MODES = useMemo(() => buildModes(t), [t]);
   const ACTION_OPTIONS = useMemo(() => buildActionOptions(t), [t]);
   const [target, setTarget] = useState(selectedTarget ?? "");
-  const [project, setProject] = useState("");
+  const [project, setProject] = useState(initialProject);
+
+  useEffect(() => {
+    setProject(initialProject);
+  }, [initialProject]);
   const [mode, setMode] = useState<CheckMode>(() => preferences.defaultCheckMode);
   const [onlyPort, setOnlyPort] = useState(preferences.defaultBoundary.onlyPort);
   const [onlyHost, setOnlyHost] = useState(preferences.defaultBoundary.onlyHost);

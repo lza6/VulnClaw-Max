@@ -11,6 +11,7 @@ observable artifact shape:
 """
 
 import json
+from pathlib import Path
 
 from vulnclaw.agent.context import EvidenceRef, SessionState, VulnerabilityFinding
 from vulnclaw.report.findings_output import (
@@ -285,3 +286,28 @@ class TestWriteArtifacts:
         )
         assert (tmp_path / "cycle_findings" / "findings.json").exists()
         assert (tmp_path / "cycle_findings" / "findings.sarif").exists()
+
+
+class TestSarifSchemaValidation:
+    """Validate emitted SARIF against the official 2.1.0 schema (vendored)."""
+
+    def _validate(self, sarif: dict) -> None:
+        try:
+            import jsonschema
+        except ImportError:  # pragma: no cover - jsonschema is a runtime dep
+            self.skipTest("jsonschema not installed")
+        schema_path = Path(__file__).with_name("sarif-2.1.0.schema.json")
+        schema = json.loads(schema_path.read_text(encoding="utf-8"))
+        jsonschema.validate(sarif, schema)
+
+    def test_web_finding_sarif_is_schema_valid(self):
+        sarif = to_sarif([_web_finding()], target="https://shop.example.com")
+        self._validate(sarif)
+
+    def test_code_finding_sarif_is_schema_valid(self):
+        sarif = to_sarif([_code_finding()], target="src")
+        self._validate(sarif)
+
+    def test_empty_sarif_is_schema_valid(self):
+        sarif = to_sarif([])
+        self._validate(sarif)

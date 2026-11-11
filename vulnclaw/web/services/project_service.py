@@ -33,6 +33,45 @@ def _project_dir(slug: str) -> Path | None:
     return PROJECTS_DIR / slug
 
 
+def _index_path() -> Path:
+    return PROJECTS_DIR / "index.json"
+
+
+def _load_index() -> dict[str, str]:
+    path = _index_path()
+    if not path.exists():
+        return {}
+    try:
+        raw = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {}
+    if not isinstance(raw, dict):
+        return {}
+    return {
+        str(target): str(slug)
+        for target, slug in raw.items()
+        if isinstance(target, str) and isinstance(slug, str) and _SLUG_RE.fullmatch(slug)
+    }
+
+
+def _save_index(index: dict[str, str]) -> None:
+    atomic_write_json(_index_path(), index)
+
+
+def _project_manifest(slug: str) -> tuple[Path, dict] | None:
+    directory = _project_dir(slug)
+    if directory is None:
+        return None
+    manifest = directory / "project.json"
+    if not manifest.is_file():
+        return None
+    try:
+        raw = json.loads(manifest.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    return (manifest, raw) if isinstance(raw, dict) else None
+
+
 def _view(raw: dict) -> ProjectView:
     return ProjectView(
         slug=str(raw.get("slug") or ""),
@@ -102,36 +141,82 @@ def create_project(
     }
     atomic_write_json(directory / "project.json", raw)
     (directory / "reports").mkdir(parents=True, exist_ok=True)
-    return _view(raw)
+    for target in raw["targets"]:
+        assign_target(slug, target)
+    return get_project(slug) or _view(raw)
 
 
 def assign_target(slug: str, target: str) -> ProjectView | None:
-    directory = _project_dir(slug)
-    if directory is None:
+    """Assign a target to a project, enforcing single-project ownership.
+
+    A target that already belongs to another project is moved: the old project
+    loses it and the new project gains it. This keeps report routing
+    deterministic.
+    """
+    loaded = _project_manifest(slug)
+    if loaded is None:
         return None
-    manifest = directory / "project.json"
-    if not manifest.is_file():
-        return None
-    try:
-        raw = json.loads(manifest.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError):
-        return None
-    if not isinstance(raw, dict):
-        return None
+    manifest, raw = loaded
+
+    index = _load_index()
+    previous = index.get(target)
+    if previous and previous != slug:
+        previous_loaded = _project_manifest(previous)
+        if previous_loaded is not None:
+            previous_manifest, previous_raw = previous_loaded
+            previous_targets = [
+                item for item in previous_raw.get("targets") or [] if item != target
+            ]
+            previous_raw["targets"] = previous_targets
+            atomic_write_json(previous_manifest, previous_raw)
 
     targets = list(raw.get("targets") or [])
     if target not in targets:
         targets.append(target)
     raw["targets"] = targets
     atomic_write_json(manifest, raw)
+    index[target] = slug
+    _save_index(index)
     return _view(raw)
 
 
+def unassign_target(target: str) -> bool:
+    """Remove a target from whichever project owns it."""
+    index = _load_index()
+    slug = index.pop(target, None)
+    if slug is None:
+        return False
+    loaded = _project_manifest(slug)
+    if loaded is not None:
+        manifest, raw = loaded
+        raw["targets"] = [item for item in raw.get("targets") or [] if item != target]
+        atomic_write_json(manifest, raw)
+    _save_index(index)
+    return True
+
+
 def find_project_for_target(target: str) -> str | None:
+    index = _load_index()
+    slug = index.get(target)
+    if slug and _project_manifest(slug) is not None:
+        return slug
+    # Migration fallback for projects created before the single-owner index.
     for project in list_projects():
         if target in project.targets:
+            index[target] = project.slug
+            _save_index(index)
             return project.slug
     return None
+
+
+def targets_for_project(slug: str) -> set[str]:
+    """Targets owned by ``slug`` according to the single-owner index."""
+    return {target for target, owner in _load_index().items() if owner == slug}
+
+
+def owned_targets() -> set[str]:
+    """Every target that belongs to some project."""
+    return set(_load_index())
 
 
 def report_dir(slug: str) -> Path | None:

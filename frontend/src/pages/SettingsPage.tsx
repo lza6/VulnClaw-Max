@@ -3,6 +3,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type { ConfigView } from "../types/api";
 import { fetchProviderModels, toggleMcpServer, updateConfig } from "../api/web";
 import { IntegrationsPanel } from "../components/IntegrationsPanel";
+import { StoragePanel } from "../components/StoragePanel";
 import { SchedulesPanel } from "../components/SchedulesPanel";
 import { SectionCard } from "../components/SectionCard";
 import { useConfigQuery, useMcpDiagnosticsQuery, useProvidersQuery } from "../hooks/queries";
@@ -71,7 +72,8 @@ export function SettingsPage({ initialSection = "basic", onOpenAdvanced }: Setti
   const providersQuery = useProvidersQuery();
   const queryClient = useQueryClient();
   const mcpToggle = useMutation({
-    mutationFn: ({ name, enabled }: { name: string; enabled: boolean }) => toggleMcpServer(name, enabled),
+    mutationFn: ({ name, enabled, allowedTools }: { name: string; enabled: boolean; allowedTools?: string[] }) =>
+      toggleMcpServer(name, enabled, allowedTools),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["mcp-diagnostics"] });
     },
@@ -704,6 +706,24 @@ export function SettingsPage({ initialSection = "basic", onOpenAdvanced }: Setti
                       Calls {service.call_count} - Success {service.success_count} - Failed {service.failure_count}
                     </span>
                     {service.error && <span className="danger-inline">{service.error}</span>}
+                    <label className="field">
+                      <span>{t("settings.mcp_allowed_tools")}</span>
+                      <input
+                        defaultValue={(service.allowed_tools ?? []).join(", ")}
+                        placeholder={t("settings.mcp_allowed_tools_placeholder")}
+                        onBlur={(event) =>
+                          mcpToggle.mutate({
+                            name: service.name,
+                            enabled: service.enabled,
+                            allowedTools: event.target.value
+                              .split(",")
+                              .map((item) => item.trim())
+                              .filter(Boolean),
+                          })
+                        }
+                      />
+                      <small>{t("settings.mcp_allowed_tools_hint")}</small>
+                    </label>
                     <button
                       type="button"
                       className="text-btn inline-text-btn"
@@ -717,13 +737,15 @@ export function SettingsPage({ initialSection = "basic", onOpenAdvanced }: Setti
                           ? t("settings.mcp_disable")
                           : t("settings.mcp_enable")}
                     </button>
-                    <span className="muted-inline">{t("settings.mcp_applies_next")}</span>
+                    <span className="muted-inline">{t("settings.mcp_applies_now")}</span>
                   </div>
                 ))}
                 {!mcpQuery.data?.services.length && <div className="empty-state">{t("settings.no_mcp_diag")}</div>}
               </div>
             </div>
           )}
+
+          {activeSection === "diagnostics" && <StoragePanel />}
 
           {activeSection !== "integrations" && activeSection !== "schedules" && (
             <div className="button-row">

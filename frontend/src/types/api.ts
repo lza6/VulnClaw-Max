@@ -235,6 +235,7 @@ export interface TaskSummary {
   tokens_output?: number;
   tokens_total?: number;
   llm_calls?: number;
+  cost_estimate?: number;
 }
 
 export interface TaskRecord {
@@ -275,6 +276,7 @@ export interface MCPServiceView {
   can_execute: boolean;
   tool_count: number;
   tools: string[];
+  allowed_tools: string[];
   error?: string | null;
   last_error_type?: string | null;
   started_at?: string | null;
@@ -332,11 +334,20 @@ export interface RunEvent {
   payload: Record<string, unknown>;
 }
 
+export interface RunPhase {
+  name: string;
+  started_at: string;
+  ended_at: string;
+  duration_seconds: number;
+  event_count: number;
+}
+
 export interface RunDetail extends RunSummary {
   run_dir: string;
   artifacts: Record<string, string>;
   resume: Record<string, unknown>;
   events: RunEvent[];
+  phases: RunPhase[];
   findings: unknown;
   reports: string[];
 }
@@ -450,10 +461,13 @@ export interface ScheduleView {
   target: string;
   command: ScheduleCommand;
   interval_seconds: number;
+  cron?: string | null;
   enabled: boolean;
   options: Record<string, unknown>;
   last_run: number | null;
   next_run: number | null;
+  last_error?: string;
+  last_error_at?: string | null;
 }
 
 export interface ScheduleUpsertRequest {
@@ -461,6 +475,25 @@ export interface ScheduleUpsertRequest {
   target: string;
   command: ScheduleCommand;
   interval_seconds: number;
+  cron?: string | null;
   enabled: boolean;
   options: Record<string, unknown>;
 }
+
+export interface StorageUsage {
+  sessions_bytes: number;
+  runs_bytes: number;
+  targets_bytes: number;
+  projects_bytes: number;
+  web_events_bytes: number;
+  web_tasks_bytes: number;
+  total_bytes: number;
+}
+
+export interface GCResult {
+  removed: number;
+  freed_bytes: number;
+  dry_run: boolean;
+  entries: Array<{ root: string; name: string; bytes: number }>;
+}
+

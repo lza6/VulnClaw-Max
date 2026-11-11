@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-from types import SimpleNamespace
 
 import pytest
 from fastapi.testclient import TestClient
@@ -15,10 +14,10 @@ def client(monkeypatch, tmp_path):
     import vulnclaw.web.app as web_app
     import vulnclaw.web.services.constraint_audit_service as audit_service
     import vulnclaw.web.services.integration_service as integration_service
-    import vulnclaw.web.services.mcp_control_service as mcp_service
     import vulnclaw.web.services.project_service as project_service
     import vulnclaw.web.services.run_service as run_service
     import vulnclaw.web.services.schedule_service as schedule_service
+    from vulnclaw.mcp.schemas import MCPDiagnosticsView
 
     monkeypatch.setattr(store, "TARGETS_DIR", tmp_path / "targets")
     monkeypatch.setattr(audit_service, "TARGETS_DIR", tmp_path / "targets")
@@ -26,12 +25,20 @@ def client(monkeypatch, tmp_path):
     monkeypatch.setattr(project_service, "PROJECTS_DIR", tmp_path / "projects")
     monkeypatch.setattr(integration_service, "INTEGRATIONS_FILE", tmp_path / "integrations.json")
     monkeypatch.setattr(schedule_service, "SCHEDULES_FILE", tmp_path / "schedules.json")
-    monkeypatch.setattr(
-        mcp_service,
-        "load_config",
-        lambda: SimpleNamespace(mcp=SimpleNamespace(servers={"fetch": object()})),
-    )
-    monkeypatch.setattr(mcp_service, "set_config_value", lambda *_args: None)
+    async def fake_toggle(name, enabled, allowed_tools=None):
+        if name != "fetch":
+            return None
+        return {
+            "name": name,
+            "enabled": enabled,
+            "allowed_tools": list(allowed_tools or []),
+            "applies_to": "control_plane_and_next_task",
+            "running": False,
+            "tool_count": 0,
+        }
+
+    monkeypatch.setattr(web_app, "get_live_mcp_diagnostics", lambda: MCPDiagnosticsView())
+    monkeypatch.setattr(web_app, "toggle_mcp_server", fake_toggle)
 
     return TestClient(web_app.create_app(), base_url="http://localhost", client=("127.0.0.1", 5555))
 

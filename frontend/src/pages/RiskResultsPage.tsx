@@ -141,6 +141,11 @@ export function RiskResultsPage({ selectedTarget, onSelectTarget, onOpenHome, on
   const [generating, setGenerating] = useState(false);
   const [reportFormat, setReportFormat] = useState<UiPreferences["reportFormat"]>(() => loadUiPreferences().reportFormat);
   const [showRaw, setShowRaw] = useState(false);
+  const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
+  const [bulkStatus, setBulkStatus] = useState<FindingTriageStatus>("confirmed");
+  const [bulkNote, setBulkNote] = useState("");
+  const [bulkBusy, setBulkBusy] = useState(false);
+  const [bulkMessage, setBulkMessage] = useState<string | null>(null);
 
   useEffect(() => subscribeUiPreferences((preferences) => {
     setReportFormat(preferences.reportFormat);
@@ -185,6 +190,7 @@ export function RiskResultsPage({ selectedTarget, onSelectTarget, onOpenHome, on
     findingKey: string,
     status: FindingTriageStatus,
     note?: string,
+    assignee?: string,
   ) {
     if (!targetValue) return;
     try {
@@ -194,10 +200,57 @@ export function RiskResultsPage({ selectedTarget, onSelectTarget, onOpenHome, on
         finding_key: findingKey,
         triage_status: status,
         note: note ?? triageMap.get(findingKey)?.note ?? "",
+        assignee: assignee ?? triageMap.get(findingKey)?.assignee ?? "",
       });
       await findingsQuery.refetch();
     } catch (err) {
       setError(err instanceof Error ? err.message : t("error.triage_failed"));
+    }
+  }
+
+  function toggleSelected(findingKey: string, checked: boolean) {
+    setSelectedKeys((previous) => {
+      const next = new Set(previous);
+      if (checked) next.add(findingKey);
+      else next.delete(findingKey);
+      return next;
+    });
+  }
+
+  function toggleAll() {
+    setSelectedKeys((previous) =>
+      previous.size === findings.length ? new Set() : new Set(findings.map((item) => item.key)),
+    );
+  }
+
+  async function handleBulkTriage() {
+    if (!targetValue || !selectedKeys.size) return;
+    setBulkBusy(true);
+    setError(null);
+    setBulkMessage(null);
+    let updated = 0;
+    const failures: string[] = [];
+    for (const key of selectedKeys) {
+      try {
+        await triageFinding({
+          target: targetValue,
+          finding_key: key,
+          triage_status: bulkStatus,
+          note: bulkNote || triageMap.get(key)?.note || "",
+          assignee: triageMap.get(key)?.assignee || "",
+        });
+        updated += 1;
+      } catch (err) {
+        failures.push(`${key}: ${err instanceof Error ? err.message : String(err)}`);
+      }
+    }
+    await findingsQuery.refetch();
+    setBulkBusy(false);
+    if (failures.length) {
+      setBulkMessage(t("triage.bulk_failed", { detail: failures.slice(0, 2).join("; ") }));
+    } else {
+      setSelectedKeys(new Set());
+      setBulkMessage(t("triage.bulk_done", { count: String(updated) }));
     }
   }
 
@@ -225,6 +278,7 @@ export function RiskResultsPage({ selectedTarget, onSelectTarget, onOpenHome, on
         <label className="field">
           <span>{t("risk.target")}</span>
           <select
+            data-testid="risk-target-select"
             value={targetValue ?? ""}
             onChange={(event) => {
               const value = event.target.value || null;
@@ -382,11 +436,47 @@ export function RiskResultsPage({ selectedTarget, onSelectTarget, onOpenHome, on
       {target && (
         <div className="split-grid">
           <SectionCard title={t("risk.findings")}>
+            <div className="finding-bulk-bar">
+              <label className="inline-check">
+                <input
+                  type="checkbox"
+                  checked={findings.length > 0 && selectedKeys.size === findings.length}
+                  onChange={toggleAll}
+                  aria-label={t("triage.select_all")}
+                />
+                {t("triage.select_all")}
+              </label>
+              <label className="field">
+                <span>{t("triage.bulk_status")}</span>
+                <select value={bulkStatus} onChange={(event) => setBulkStatus(event.target.value as FindingTriageStatus)}>
+                  {(["new", "triaged", "confirmed", "false_positive", "fixed", "risk_accepted"] as FindingTriageStatus[]).map((status) => (
+                    <option key={status} value={status}>{t(`triage.${status}`)}</option>
+                  ))}
+                </select>
+              </label>
+              <label className="field">
+                <span>{t("triage.bulk_note")}</span>
+                <input value={bulkNote} onChange={(event) => setBulkNote(event.target.value)} placeholder={t("triage.note_placeholder")} />
+              </label>
+              <button className="secondary-btn" type="button" disabled={!selectedKeys.size || bulkBusy} onClick={() => void handleBulkTriage()}>
+                {t("triage.bulk_apply")}
+              </button>
+              <span className="muted-inline">{t("triage.selected", { count: String(selectedKeys.size) })}</span>
+              {bulkMessage && <span className="muted-inline">{bulkMessage}</span>}
+            </div>
             <div className="risk-list">
               {findings.length ? (
                 findings.map((finding) => (
                   <article key={finding.id} className="risk-item">
                     <div className="risk-item-head">
+                      <label className="finding-select">
+                        <input
+                          type="checkbox"
+                          checked={selectedKeys.has(finding.key)}
+                          onChange={(event) => toggleSelected(finding.key, event.target.checked)}
+                          aria-label={t("triage.select")}
+                        />
+                      </label>
                       <div>
                         <span className={`severity-badge severity-${severityTone(finding.severity)}`}>{formatSeverityLabel(finding.severity)}</span>
                         <h4>{finding.title}</h4>
@@ -432,6 +522,21 @@ export function RiskResultsPage({ selectedTarget, onSelectTarget, onOpenHome, on
                             void handleTriage(
                               finding.key,
                               triageMap.get(finding.key)?.triage_status ?? "new",
+                              event.target.value,
+                            )
+                          }
+                        />
+                      </label>
+                      <label className="field">
+                        <span>{t("triage.assignee")}</span>
+                        <input
+                          defaultValue={triageMap.get(finding.key)?.assignee ?? ""}
+                          placeholder={t("triage.assignee_placeholder")}
+                          onBlur={(event) =>
+                            void handleTriage(
+                              finding.key,
+                              triageMap.get(finding.key)?.triage_status ?? "new",
+                              triageMap.get(finding.key)?.note ?? "",
                               event.target.value,
                             )
                           }

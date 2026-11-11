@@ -253,6 +253,11 @@ class WebTaskManager:
         ):
             yield item
 
+    def events_after(self, task_id: str, *, after_seq: int = 0, limit: int = 100) -> list[TaskEvent]:
+        """Return a bounded page of buffered events for REST polling clients."""
+        events = self._bus.replay(task_id, after_seq)
+        return events[: max(1, min(2000, limit))]
+
     def _is_terminal(self, task_id: str) -> bool:
         record = self._tasks.get(task_id)
         return bool(record and record.status in _TERMINAL_STATUSES)

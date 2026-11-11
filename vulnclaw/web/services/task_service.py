@@ -13,7 +13,7 @@ from vulnclaw.mcp.lifecycle import MCPLifecycleManager
 from vulnclaw.task_service import execute_task, prepare_task
 from vulnclaw.web.schemas import TaskCreateRequest
 from vulnclaw.web.services.integration_service import notify_run_event
-from vulnclaw.web.services.project_service import assign_target
+from vulnclaw.web.services.project_service import assign_target, get_project
 from vulnclaw.web.task_manager import WebTaskManager
 
 logger = logging.getLogger(__name__)
@@ -21,9 +21,15 @@ logger = logging.getLogger(__name__)
 
 def start_task(manager: WebTaskManager, request: TaskCreateRequest) -> str:
     """Create and schedule a new task behind the manager's concurrency slot."""
-    if request.options.project and assign_target(request.options.project, request.target) is None:
+    if request.options.project and get_project(request.options.project) is None:
         raise ValueError(f"Project not found: {request.options.project}")
     record = manager.create_task(request)
+    if request.options.project:
+        # Associate after the task exists so a failed create never moves a target
+        # into a project that has no task referencing it.
+        if assign_target(request.options.project, request.target) is None:
+            manager.set_failed(record.task_id, f"Project not found: {request.options.project}")
+            raise ValueError(f"Project not found: {request.options.project}")
     manager.set_queued(record.task_id)
     task = asyncio.create_task(_schedule_task(manager, record.task_id, request))
     manager.bind_runtime_task(record.task_id, task)

@@ -1,0 +1,1 @@
+function n(t){const e=t.trim();if(!e)return;if(!/^\d+$/.test(e))throw new Error("Port must be a number between 1 and 65535.");const r=Number(e);if(!Number.isInteger(r)||r<1||r>65535)throw new Error("Port must be a number between 1 and 65535.");return r}export{n as p};
